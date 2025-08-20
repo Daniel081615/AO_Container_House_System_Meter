@@ -1,0 +1,82 @@
+/*---------------------------------------------------------------------------------------
+ * File Name     : ZbCoordinator.H
+ * Company 		 : AOTECH
+ * Author Name   : Barry Su
+ * Starting Date : 2014.12.01
+ * C Compiler : Keil C
+ * --------------------------------------------------------------------------------------*/
+
+#ifndef __MODBUS_H
+#define __MODBUS_H
+
+
+enum DefineMODBUS_POWER_METER {
+	MDBS_READY,
+	MDBS_METER_GET_WATT,
+	MDBS_METER_SET_RELAY,	
+	MDBS_METER_SET_ADDR_EN,
+	MDBS_METER_SET_ADDR_DIS,
+	MDBS_METER_SET_ADDR,
+	MDBS_METER_SET_BAUDRATE,
+	MDBS_METER_GET_RELAY,
+	MDBS_METER_GET_ADDR,
+	MDBS_METER_GET_BAUDRATE,
+	MDBS_METER_SET_PWD,
+	MDBS_METER_SET_EXIT,
+	MDBS_METER_EXIT_TEST,
+	MDBS_METER_ADD_VALUE,
+	MDBS_METER_GET_BAL,	
+	MDBS_METER_GET_V,
+	MDBS_METER_GET_I,
+	MDBS_METER_GET_F,	
+	MDBS_METER_GET_P,	
+	MDBS_METER_GET_S,
+	MDBS_METER_GET_PF,
+	MDBS_METER_GET_MODE,	
+	MDBS_METER_GET_STATUS,
+	MDBS_METER_GET_CARD_ID,
+	
+	MDBS_METER_SET_POWER_ON,
+	MDBS_METER_SET_MODE,
+	MDBS_METER_SET_TIME,	
+	MDBS_METER_GET_TIME,
+	MDBS_METER_OTHER,
+};
+
+enum DefineMODBUS_CMD {
+	MBCMD_READY,
+	MBCMD_GET_RELAY,
+	MBCMD_GET_WATT,
+	MBCMD_RELAY_ON,
+	MBCMD_RELAY_OFF,
+	MBCMD_SET_ADDR,
+	MBCMD_SET_BAUD,
+	MBCMD_ADD_VALUE,
+	MBCMD_EXIT_TEST,
+	MBCMD_SET_POWER_ON,
+	MBCMD_SET_POWER_OFF,
+	MBCMD_SET_POWER_READER,
+};
+
+enum DefineMODBUS_STEP {
+	MDBS_NORM,
+	MDBS_STEP1,
+	MDBS_STEP2,
+	MDBS_STEP3,
+	MDBS_STEP4,
+};
+
+
+/*
+enum DefineMODBUS_MeterCommandType {
+        MDBS_METER_SYNC=0,
+        MDBS_METER_READ_WATT,
+        MDBS_METER_READ_ALL_WATT,
+        MDBS_METER_CLEAR_ALL_WATT
+};
+*/
+
+extern void MODBUS_SendCmd(uint8_t cmd);
+extern void CRC16(unsigned char *puchMsg,unsigned short usDataLen);
+
+#endif

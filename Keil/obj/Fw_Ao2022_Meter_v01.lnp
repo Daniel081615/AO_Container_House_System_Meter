@@ -1,0 +1,21 @@
+--cpu Cortex-M0
+".\obj\system_nuc126.o"
+".\obj\startup_nuc126.o"
+".\obj\main.o"
+".\obj\ao_ee24c.o"
+".\obj\ao_hostprocess.o"
+".\obj\ao_meterprocess.o"
+".\obj\ao_modbusprocess.o"
+".\obj\ao_readerprocess.o"
+".\obj\ao2022_metermodule_1261.o"
+".\obj\retarget.o"
+".\obj\uart.o"
+".\obj\sys.o"
+".\obj\clk.o"
+".\obj\gpio.o"
+".\obj\i2c.o"
+".\obj\wdt.o"
+--library_type=microlib --ro-base 0x00000000 --entry 0x00000000 --rw-base 0x20000000 --entry Reset_Handler --first __Vectors --strict
+--map --first='startup_NUC126.o(RESET)' --datacompressor=off --info=inline --entry Reset_Handler --summary_stderr --info summarysizes --map --symbols
+--info sizes --info totals
+--list ".\lst\Fw_Ao2022_Meter_v01.map" -o .\obj\Fw_Ao2022_Meter_v01.axf
