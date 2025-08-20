@@ -185,6 +185,7 @@ uint8_t TickHost,SaveStep;
 /********************
   * 0x01  DAE DEM530
   * 0x02  Tatung E21/E31
+	* 0x03	DEM_510c
   ********************/
 uint8_t MeterType;
 uint8_t GotMeterRsp;
