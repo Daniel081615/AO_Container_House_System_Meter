@@ -21,7 +21,7 @@
 ".\obj\retarget.o"
 ".\obj\wdt.o"
 ".\obj\sys.o"
---library_type=microlib --strict --scatter ".\obj\ContainerHouseSystem_Meter.sct"
+--library_type=microlib --nodebug --strict --scatter ".\obj\ContainerHouseSystem_Meter.sct"
 --map --first='startup_NUC1261.o(RESET)' --datacompressor=off --info=inline --entry Reset_Handler --summary_stderr --info summarysizes --map --load_addr_map_info --symbols
 --info sizes --info totals
 --list ".\lst\ContainerHouseSystem_Meter.map" -o .\obj\ContainerHouseSystem_Meter.axf
