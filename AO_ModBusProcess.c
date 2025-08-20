@@ -773,6 +773,19 @@ void CmdModBus_DEM_510c(uint8_t ModBusCommand)
 			MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
 			_SendStringToMETER(MeterTxBuffer,8);   					
 			break;
+    case MDBS_METER_GET_BAL:
+				MeterMBCmd = MDBS_METER_GET_BAL ;
+				bReadPowerMeterValue = 1 ;			
+				MeterTxBuffer[1]=0x03;          // Function 
+				MeterTxBuffer[2]=0x00;          // Data 0
+				MeterTxBuffer[3]=0x22;          // Data 1
+				MeterTxBuffer[4]=0x00;          // Data 2
+				MeterTxBuffer[5]=0x02;          // Data 3
+				CRC16(MeterTxBuffer,6);
+				MeterTxBuffer[6]=uchCRCHi;      // // CRC Checksum 
+				MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
+				_SendStringToMETER(MeterTxBuffer,8);   
+			break;
 		case MDBS_METER_SET_RELAY : 
 			MeterMBCmd = MDBS_METER_OTHER ;
 			MeterTxBuffer[1]=0x05;          // Function 

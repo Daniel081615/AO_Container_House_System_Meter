@@ -45,6 +45,9 @@ uint16_t Tick10mSec_PowerMeterInit;
 //uint16_t TickReadPowerTime;
 
 
+/***
+ *	@brief	Need to revise the Cmd Process of DEM_510c
+ ***/
 
 void MeterPolling(void)
 {	   
@@ -56,7 +59,10 @@ void MeterPolling(void)
             {
                 TickReadPowerTime = 0 ;								
                 MeterPollingState = MP_POLLING_W_CMD + PollingStateIndex ;
-                if ( MeterPollingState > MP_POLLING_CARD_CMD )
+								/***
+								 *	@brief	For ESG Condition, only poll three values of PowerMeter *DEM510c, @TotalWatt, @RelayStatus & @Balance
+								 ***/
+                if ( MeterPollingState > MP_POLLING_BAL_CMD )
                 {
                     MeterPollingState = MP_POLLING_W_CMD ;
                     PollingStateIndex = 0 ;
@@ -524,7 +530,6 @@ void MeterDataProcess(void)
 			}						
 		}
 			
-		// ¤ÀªR¹q¿ö¾lÃB
 		if ( MeterMBCmd == MDBS_METER_GET_BAL)
 		{
 			switch ( MeterType )
@@ -545,6 +550,7 @@ void MeterDataProcess(void)
 				case TUTANG_E21nE31 :				
 					break;
 				case DEM_510c:
+					MeterData[u8PowerMeterID].MeterBalance = ( (TokenMeter[5]) << 24) + ( (TokenMeter[6]) << 16) + ( (TokenMeter[3]) << 8) + (TokenMeter[4]) ;
 					break;
 			}						
 		}

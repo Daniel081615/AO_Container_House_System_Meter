@@ -182,10 +182,11 @@ uint8_t TickHostUart, TickMeterUart;
 _Bool 	bRecoverSystem,bResetUARTQ;
 uint8_t TickHost,SaveStep;
 
-/********************
+/********	Power Meter Types	********
   * 0x01  DAE DEM530
   * 0x02  Tatung E21/E31
-	* 0x03	DEM_510c
+	* 0x03 	TUTANG_E21nE31			
+	* 0x04	@DEM_510c	
   ********************/
 uint8_t MeterType;
 uint8_t GotMeterRsp;
@@ -197,7 +198,7 @@ uint8_t TickModeNRelayCheck;
 uint8_t BalanceCheckTimes;
 
 uint8_t RoomSetting;
-uint8_t AutoLockTime;			// 自動上鎖等待時間
+uint8_t AutoLockTime;
 uint8_t RoomModeCounter;
 uint8_t tmpMemberMode[3];
 #ifdef METER_TEST 
