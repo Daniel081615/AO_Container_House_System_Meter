@@ -2,6 +2,7 @@
 #define	__AO_BMSMODBUSPROCESS__H__
 
 #include	"stdint.h"
+#include	"AO_ExternFunc.h"
 
 extern void BmsPolling(void);
 extern void BmsDataProcess(void);
@@ -11,10 +12,6 @@ extern _Bool CmdStateFlag;
 extern _Bool BmsPollingFinishedFlag;
 extern uint8_t GotDeviceRsp;
 extern uint8_t PollingBmsID, MaxBmsDevices;
-
-#define BmsDeviceMax 0x01
-#define WMDeviceMax  0x01
-#define InvDeviceMax 0x01
 
 #define POLL_TIMEOUT 			50
 #define POLL_ERROR_TIMES	5
@@ -124,10 +121,12 @@ enum DefineModbusBMS_Cmds
 		
 };
 
+
+
 typedef struct {
 	uint32_t BmsDeviceNG;
-	uint8_t Success[BmsDeviceMax];
-	uint8_t Fail[BmsDeviceMax];
+	uint8_t Success[PwrMeterMax];
+	uint8_t Fail[PwrMeterMax];
 	uint8_t ErrorRate;
 } BmsError_t;
 
@@ -153,6 +152,6 @@ typedef struct {
 } BmsData_t;
 
 extern BmsError_t BmsError;
-extern BmsData_t 	BmsData[BmsDeviceMax];
+extern BmsData_t 	BmsData[PwrMeterMax];
 
 #endif	//	AO_BMSModbusProcess.h

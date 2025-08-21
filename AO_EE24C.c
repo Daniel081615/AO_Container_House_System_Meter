@@ -367,7 +367,7 @@ void I2cReadDataStruct(uint8_t index, STR_METER_D *data)
 {
     uint16_t addr;
 
-    if (index >= MAX_POWER_METER || data == NULL)
+    if (index >= PwrMeterMax || data == NULL)
         return;
 
     addr = METER_DATA_ADDR_BASE + (index * METER_DATA_SIZE);

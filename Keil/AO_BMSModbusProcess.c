@@ -43,7 +43,7 @@ void CheckBmsState(void);
 
 /***	Variables	***/
 
-BmsData_t  BmsData[BmsDeviceMax];
+BmsData_t  BmsData[PwrMeterMax];
 BmsError_t BmsError;
 
 uint8_t PollingBmsID, MaxBmsDevices;
@@ -94,19 +94,28 @@ void BmsPolling(void)
 				/***	Cmds will be Process in anytime, and it will @NOT substitute the upcomming polling cmd.	***/
 				case	BMS_POLLING_READY:
 					
-						BmsPollingState = BMS_POLLING_CELL_V_CMD + BmsPollingStateIndex;
-						
-						if (BmsPollingState > BMS_POLLING_BAT_TEMP5_CMD)
+						if (TickReadPowerTime >= ReadMeterTime)
 						{
-								BmsPollingFinishedFlag = TRUE;
-								PollingBmsID++;
-								if (PollingBmsID > MaxBmsDevices)
+								TickReadPowerTime = 0 ;	
+								BmsPollingState = BMS_POLLING_CELL_V_CMD + BmsPollingStateIndex;
+								
+								if (BmsPollingState > BMS_POLLING_BAT_TEMP5_CMD)
 								{
-										PollingBmsID = 1 ;
+										BmsPollingFinishedFlag = TRUE;
+										PollingBmsID++;
+										if (PollingBmsID > MaxBmsDevices)
+										{
+												PollingBmsID = 1 ;
+										}
+										BmsPollingState = BMS_POLLING_CELL_V_CMD;
+										BmsPollingStateIndex = 0;
+								} else {
+										//	
+										BmsModbusCmd = PwrMeterCmdList[PollingMeterID-1] ;
+
 								}
-								BmsPollingState = BMS_POLLING_CELL_V_CMD;
-								BmsPollingStateIndex = 0;
 						}
+
 						break;
 									
 				//	Get Rsp logic & Timeout Warning
@@ -735,6 +744,14 @@ void BmsTimeoutProcess(void)
             ResetMeterUART();
         }
     }
+}
+
+/***
+ *	@brief	Setup Bms attributes, baudrate, device address, Mode(disable card mode, enable pc mode)
+ ***/
+
+void Bms_Init(void)
+{
 }
 
 

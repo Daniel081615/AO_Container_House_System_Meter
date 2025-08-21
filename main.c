@@ -69,13 +69,12 @@
 
 uint8_t MaxPowerMeter;
 STR_RoomSysData RoomData;
-uint8_t LastRoomMode[MAX_POWER_METER];
-STR_METER_D MeterData[MAX_POWER_METER];
-uint8_t RoomMode[MAX_POWER_METER];
+STR_METER_D MeterData[PwrMeterMax];
+uint8_t RoomMode[PwrMeterMax];
 
-uint8_t MeterErrorRate[MAX_POWER_METER];
-uint16_t MeterErrorRate_Tx[MAX_POWER_METER];
-uint16_t MeterErrorRate_Rx[MAX_POWER_METER];
+uint8_t MeterErrorRate[PwrMeterMax];
+uint16_t MeterErrorRate_Tx[PwrMeterMax];
+uint16_t MeterErrorRate_Rx[PwrMeterMax];
 
 // Unit Cost = NTD. 0.5 ( Set 10 => NTD. 1 )
 char VersionString[] = VERSION ;
@@ -157,12 +156,12 @@ uint8_t MeterError;
 
 uint8_t TickPollingInterval,MeterPollingState;
 
-uint32_t 	MeterPowerValue_Now;
+uint32_t 	TotalWattValue_Now;
 uint32_t NowMeterPower;
-uint32_t LastMeterPower[MAX_POWER_METER];
+uint32_t LastMeterPower[PwrMeterMax];
 uint16_t  TickReadPowerTime,ReadMeterTime,DelayTick;
 uint8_t PowerMeterID;
-uint8_t PowerMeterNewAddr;
+uint8_t PowerMeterNewAddr, PowerMeterNewBaudRate, PowerMeterMode;
 
 uint8_t NewUser,NowUser,LastUser;
 uint16_t	ConsumptionCounter;			// 電力計數 1600 = 1度 (1KW)
@@ -275,15 +274,22 @@ uint8_t StepFineTuneUR2,UR2_FregOK;
 uint16_t Tick10mS_FTUR2,Tick5mS_CheckRoomMode,FreqMixValue;
 uint8_t RelayOffCnt;
 uint8_t tmpMemberMode[3];
-uint8_t RoomModeCheckCounter[MAX_POWER_METER];
-uint8_t ModBusCommandList[MAX_POWER_METER];
+uint8_t RoomModeCheckCounter[PwrMeterMax];
+uint8_t PwrMeterCmdList[PwrMeterMax];
 uint8_t Tick1S_DoubleCheckRoomMode;
+
+//	Devices 
+uint8_t PwrMtrModbusCmd, BmsModbusCmd, WtrMtrModbusCmd, InvModbusCmd;
+uint8_t PwrMeterCmdList[PwrMeterMax];
+uint8_t BmsCmdList[BmsMax];
+uint8_t WtrMeterCmdList[WtrMeterMax];
+uint8_t InvCmdList[InvMax];
 
 //	SystemPolling
 uint8_t SystemPollingState, SystemPollingStateIndex;
 
-uint32_t PowerMeterRxCounter[MAX_POWER_METER];
-uint32_t PowerMeterTxCounter[MAX_POWER_METER];
+uint32_t PowerMeterRxCounter[PwrMeterMax];
+uint32_t PowerMeterTxCounter[PwrMeterMax];
 
 void DefaultValue(void);
 
@@ -411,7 +417,7 @@ void SysTick_Handler(void)
             {
                 MeterErrorRate5Min_Wp = 0 ;
             }
-            for(i=0;i<MAX_POWER_METER;i++)
+            for(i=0;i<PwrMeterMax;i++)
             {
                 MeterErrorRate5Min_Tx[i][MeterErrorRate5Min_Wp]=1;
                 MeterErrorRate5Min_Rx[i][MeterErrorRate5Min_Wp]=1;
@@ -1205,7 +1211,7 @@ int main()
 	WDT_RESET_COUNTER();
 	
 	STR_METER_D MD;
-	for(uint8_t i=0; i < MAX_POWER_METER; i++)
+	for(uint8_t i=0; i < PwrMeterMax; i++)
 	{
 		I2cReadDataStruct(i, &MD);
 		MeterData[i] = MD;
@@ -1219,20 +1225,10 @@ int main()
 	//DIR_READER_RS485_Out();
 	//_SendStringToREADER(ReaderTxBuffer,10);
 	
-    //MaxPowerMeter = MAX_POWER_METER ;
+    //MaxPowerMeter = PwrMeterMax ;
     MaxPowerMeter = 1 ;
 
-    for (i=0;i<MAX_POWER_METER;i++)
-    {
-        LastRoomMode[i]= RM_POWER_OFF_READY;
-        RoomMode[i]= RM_POWER_OFF_READY;
-        MeterData[i].PayMode = 0x01;
-        for ( j=0;j<12;j++)
-        {
-            MeterErrorRate5Min_Tx[i][j]=1;
-            MeterErrorRate5Min_Rx[i][j]=1;
-        }
-    }
+
     
     MeterErrorRate5Min_Wp = 0 ;
     PowerMeterID = 0x01 ;	
@@ -1263,7 +1259,7 @@ int main()
 #if 0
 	SystemTick = 0 ;
 	DefaultValueTest();
-	MeterPowerValue_Now = 0 ;
+	TotalWattValue_Now = 0 ;
 	
 	
 #endif 	
@@ -1284,7 +1280,7 @@ SystemTick = 0 ;
 	DisableHostUartTx();
 	fgDIR485_Reader=0;			
 	//DIR485_READER_In();
-	//LastMeterPower[0] = MeterPowerValue_Now ;
+	//LastMeterPower[0] = TotalWattValue_Now ;
 	
 	ReaderPollingState = PL_STATUS ;
 	u32TimeTick2=0;   
@@ -1294,8 +1290,7 @@ SystemTick = 0 ;
 	
 	DelayTick=0;
 	
-	MeterType = DAE_530n540 ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
-	ModBusCommand = MBCMD_EXIT_TEST ;
+	MeterType = DEM_510c ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
 	TickReadPowerTime = ReadMeterTime ;	
 	fgButton2High = 0 ;	
 	MeterPollingState = MP_READY;
@@ -1311,8 +1306,7 @@ SystemTick = 0 ;
  // 開機等待 2.5 Sec 讀取電錶值及同步Center時間
 	
 	ReadMeterTime = 40 ;	 	// Reading Power Meter per 40 x 20 mSec
-	//LastMeterPower[0] = MeterPowerValue_Now ;
-        Tick1S_DoubleCheckRoomMode = 0 ;    
+	Tick1S_DoubleCheckRoomMode = 0 ;    
        
 /***	Device test code	***/ 
 
@@ -1332,9 +1326,7 @@ WMBaudRate = 0x03;				// Set baudrate to 2400
 CmdModbus_WM(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
 
 /***	PowerMeter test & Setup	function	***/
-UART2_ChangeBaudrate(2400);
-MeterTxBuffer[0] = 0x01;
-CmdModBus_DEM5x0(MDBS_METER_SET_ADDR);
+MeterDEM_510c_Init();
 
 	// Main Loop ~ 
     do {
@@ -1354,6 +1346,7 @@ CmdModBus_DEM5x0(MDBS_METER_SET_ADDR);
     } while (1); 
 }
 
+//	Check relay mode == relay now status
 void CheckRoomMode(void)
 {
     uint8_t i;
@@ -1361,64 +1354,7 @@ void CheckRoomMode(void)
     if ( Tick5mS_CheckRoomMode < 50 ) return ;
     Tick5mS_CheckRoomMode = 0 ;
     
-    for (i=0;i<MaxPowerMeter;i++)
-    {
-        if ( LastRoomMode[i] == RoomMode[i] )
-        {            
-					RoomModeCheckCounter[i] = 0 ;
-        } else {
-					RoomModeCheckCounter[i]++;
-            if ( RoomModeCheckCounter[i] > 5  )
-            {
-                RoomModeCheckCounter[i] = 0 ;
-                if ( RoomMode[i] == RM_FREE_MODE_READY )
-                {
-                    // Change Power Meter Relay
-                    ModBusCommandList[i] = MBCMD_SET_POWER_ON ;  
-                    Tick1S_DoubleCheckRoomMode = 0 ;
-                } else if ( RoomMode[i] == RM_STOP_MODE_READY ) {
-                    // Change Power Meter Relay
-                    ModBusCommandList[i] = MBCMD_SET_POWER_OFF ;
-                    Tick1S_DoubleCheckRoomMode = 0 ;
-                } else {
-                    // Change Power Meter Relay
-                    ModBusCommandList[i] = MBCMD_SET_POWER_READER ;
-                    Tick1S_DoubleCheckRoomMode = 0 ;
-                }
-                LastRoomMode[i] = RoomMode[i];
-            }
-            
-        }
-    }
-    
-    if (Tick1S_DoubleCheckRoomMode < 20 ) return;
-    Tick1S_DoubleCheckRoomMode = 0 ;
-    
-    for (i=0;i<MaxPowerMeter;i++)
-    {
-        if ( RoomMode[i] == RM_FREE_MODE_READY )
-        {   
-            if ( (MeterData[i].RelayStatus == 0x02) || (MeterData[i].RelayStatus == 0x00))
-            {
-                ModBusCommandList[i] = MBCMD_SET_POWER_ON ;  
-            }
-        }
-        if ( RoomMode[i] == RM_STOP_MODE_READY )
-        {   
-            if ( (MeterData[i].RelayStatus == 0x01) || (MeterData[i].RelayStatus == 0x00))
-            {
-                ModBusCommandList[i] = MBCMD_SET_POWER_OFF ;
-							
-            }
-        }
-        if ( (RoomMode[i] == RM_POWER_OFF_READY) || (RoomMode[i] == RM_POWER_ON_READY)  )
-        {   
-            if ( MeterData[i].PayMode == 0x00 )
-            {
-                ModBusCommandList[i] = MBCMD_SET_POWER_READER ;
-            }
-        }
-    }
+
     
 }
 
@@ -1447,7 +1383,7 @@ void CalErrorRate(void)
 	
 /***/		
 		//	Bms error rate calculation
-		for (uint8_t i = 0; i < BmsDeviceMax; i++ )
+		for (uint8_t i = 0; i < PwrMeterMax; i++ )
 		{
 				if ((BmsError.Fail[i] + BmsError.Success[i]) > 0)
 				{
@@ -1461,7 +1397,7 @@ void CalErrorRate(void)
 		}
 		
 		//	WM error rate culculation
-		for (uint8_t i = 0; i < WMDeviceMax; i++ )
+		for (uint8_t i = 0; i < WtrMeterMax; i++ )
 		{
 				if ((WMError.Fail[i] + WMError.Success[i]) > 0)
 				{
@@ -1499,7 +1435,7 @@ void CalErrorRate(void)
     fErrorRate = tmpRx/tmpTx;
     MeterErrorRate[0] = (uint8_t) (fErrorRate*100);
         
-    for (i=0;i<MAX_POWER_METER;i++)
+    for (i=0;i<PwrMeterMax;i++)
     {
         MeterErrorRate_Tx[i] = 0 ;
         MeterErrorRate_Rx[i] = 0 ;
@@ -1677,20 +1613,20 @@ void ReadMeterPowerFromEE(void)
 	U8tmpValue = soft_i2c_eeprom_read_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+3);
 	U32tmpValue += (uint32_t) U8tmpValue  ;
 	
-	MeterPowerValue_Now = U32tmpValue;
+	TotalWattValue_Now = U32tmpValue;
 }
 
 void SaveMeterPower2EE(void)
 {	
 	uint8_t	tmpValue; 	
 	
-	tmpValue = (uint8_t) (MeterPowerValue_Now & 0xFF000000) >> 24 ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0xFF000000) >> 24 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE, tmpValue);	
-	tmpValue = (uint8_t) (MeterPowerValue_Now & 0x00FF0000) >> 16 ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0x00FF0000) >> 16 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+1, tmpValue);
-	tmpValue = (uint8_t) (MeterPowerValue_Now & 0x0000FF00) >> 8 ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0x0000FF00) >> 8 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+2, tmpValue);
-	tmpValue = (uint8_t) (MeterPowerValue_Now & 0x000000FF) ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0x000000FF) ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+3, tmpValue);
 	
 }

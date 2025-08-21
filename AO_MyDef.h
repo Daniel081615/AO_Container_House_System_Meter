@@ -30,10 +30,11 @@
 #include "stdint.h"
 #include "ota_manager.h"
 
-#define MAX_POWER_METER     31
-#define BmsDeviceMax 0x01
-#define WMDeviceMax  0x01
-#define InvDeviceMax 0x01
+//	Per Meter Board
+#define PwrMeterMax 1
+#define BmsMax			1
+#define WtrMeterMax 1
+#define InvMax			1
 
 //#define METER_TEST
 
@@ -350,42 +351,10 @@ enum DEFINE_POWER_METER_STATE {
 	MP_POLLING_RSP,
 	MP_POLLING_W_CMD,	
 	MP_POLLING_RELAY_CMD,	
-	MP_POLLING_BAL_CMD,		
-	MP_POLLING_V_CMD,	
-	MP_POLLING_I_CMD,
-	MP_POLLING_F_CMD,	
-	MP_POLLING_P_CMD,	
-	MP_POLLING_S_CMD,	
-	MP_POLLING_PF_CMD,
-	MP_POLLING_PAY_CMD,
-	MP_POLLING_STATUS_CMD,
-	MP_POLLING_CARD_CMD,
 			
 	MP_SET_RELAY1,
 	MP_SET_RELAY2,
-	MP_SET_RELAY3,
-	MP_ADD_VALUE1,
-	MP_ADD_VALUE2,
-	MP_ADD_VALUE3,
-	MP_EXIT_TEST1,
-	MP_EXIT_TEST2,
-	MP_EXIT_TEST3,
-	MP_SET_POWER_ON1,
-	MP_SET_POWER_ON2,
-	MP_SET_POWER_ON3,
-	MP_SET_POWER_ON4,
-	MP_SET_POWER_ON5,
-	MP_SET_POWER_ON6,
-	MP_SET_POWER_OFF1,
-	MP_SET_POWER_OFF2,
-	MP_SET_POWER_OFF3,
-	MP_SET_POWER_OFF4,
-	MP_SET_POWER_OFF5,
-	MP_SET_POWER_OFF6,
-	MP_SET_POWER_READER1,
-	MP_SET_POWER_READER2,
-	MP_SET_POWER_READER3,
-	MP_SET_POWER_READER4,
+
 	MP_ERROR,
 };
 
@@ -483,14 +452,10 @@ enum DEFINE_POWER_METER_STATE {
 enum DEFINE_RS485_METER_TOKEN {
 
 METER_CMD_ALIVE=0x10,			//0x10			
-METER_CMD_SET_USER_INFO,				//0x11
-METER_CMD_CHG_ROOM_DATA, 			//0x12
-METER_CMD_CHG_USER_DATA, 		//0x13
-METER_CMD_GET_USER_DATA,			//0x14
-METER_CMD_GET_POWER_DATA,			//0x15
-METER_CMD_GET_BMS_DATA,
-METER_CMD_GET_WM_DATA,
-METER_CMD_GET_INV_DATA,	
+METER_GET_CMD_POWER_METER,
+METER_GET_CMD_BMS,
+METER_GET_CMD_WATER_METER,
+METER_GET_CMD_INV,	
 
 CMD_MTR_OTA_UPDATE = 0x20,	
 CMD_MTR_SWITCH_FWVER,
@@ -637,19 +602,10 @@ typedef struct STR_METER_TEABLE {
     uint8_t PortID;    
 } STR_METER_TB;
 
-typedef struct STR_METER_DATA {    
-uint8_t RelayStatus;   
-uint8_t PayMode;
-uint8_t UserStatus;
-uint32_t MeterTotalWatt;
-uint32_t MeterValtage;
-uint32_t MeterCurrent;
-uint32_t MeterVA;
-uint32_t MeterActPower;
-uint16_t MeterFreq;
-uint16_t MeterPowerFactor;
-uint32_t MeterBalance;
-uint32_t UserUID;
+typedef struct STR_METER_DATA {   
+uint32_t TotalWatt;	
+uint8_t  DeltaWatt;
+uint8_t RelayStatus;
 } STR_METER_D;
 #endif 
 

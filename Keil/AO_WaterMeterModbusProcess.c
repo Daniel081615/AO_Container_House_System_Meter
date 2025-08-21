@@ -47,7 +47,7 @@ void CheckWMState(void);
 
 /*** 	Water Meter Variables	***/
 WMError_t WMError;
-WMData_t WMData[WMDeviceMax];
+WMData_t WMData[WtrMeterMax];
 uint8_t PollingWMID, MaxWMDevices, WMSetDeviceID;
 uint8_t WMPollingState, WMPollingStateIndex;
 uint8_t WMMBCMD;

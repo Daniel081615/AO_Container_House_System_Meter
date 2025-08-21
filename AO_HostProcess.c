@@ -57,8 +57,10 @@ void SendHost_PowerData(void);
 void Host_ChangeRoomData(void);
  void Host_ChangeUserData(void);
  
-void Host_GetDeviceDataProcess(void);
-
+void Host_PowerMeterDataProcess(void);
+void Host_BmsDataProcess(void);
+void Host_WMDataProcess(void);
+void Host_InvDataProcess(void);
 
 uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len);
 
@@ -145,23 +147,23 @@ void HostProcess(void)
                         CmdType = METER_RSP_SYS_INFO ;
                         ClearRespDelayTimer() ;	
                         break;							
-                    case METER_CMD_GET_POWER_DATA :
-                        Host_GetDeviceDataProcess();                        
+                    case METER_GET_CMD_POWER_METER :
+                        Host_PowerMeterDataProcess();                        
                         CmdType = METER_RSP_POWER_DATA ;
                         ClearRespDelayTimer() ;	
                         break;
-                    case METER_CMD_GET_BMS_DATA :
-                        Host_GetDeviceDataProcess();                        
+                    case METER_GET_CMD_BMS :
+                        Host_BmsDataProcess();                        
                         CmdType = METER_RSP_BMS_DATA ;
                         ClearRespDelayTimer() ;	
                         break;										
-                    case METER_CMD_GET_WM_DATA :
-                        Host_GetDeviceDataProcess();                        
+                    case METER_GET_CMD_WATER_METER :
+                        Host_WMDataProcess();                        
                         CmdType = METER_RSP_WM_DATA ;
                         ClearRespDelayTimer() ;	
                         break;	
-                    case METER_CMD_GET_INV_DATA :
-                        Host_GetDeviceDataProcess();                        
+                    case METER_GET_CMD_INV :
+                        Host_InvDataProcess();                        
                         CmdType = METER_RSP_INV_DATA ;
                         ClearRespDelayTimer() ;	
                         break;
@@ -233,7 +235,6 @@ void Host_AliveProcess(void)
     uint8_t i;
     uint8_t u8BuferIndex;
     uint8_t HostData_P,HostData_N;
-    //uint8_t CmdOpenDoor1,CmdOpenDoor2;
     
     for (i=0;i<7;i++)
     {
@@ -253,7 +254,7 @@ void Host_AliveProcess(void)
         if ( HostData_P == 0x30 )
         {
             u8BuferIndex = 9 ;
-            for (i=0;i<MAX_POWER_METER;i++)
+            for (i=0;i<PwrMeterMax;i++)
             {
                 RoomMode[i] = TokenHost[u8BuferIndex++];
             }            
@@ -262,7 +263,7 @@ void Host_AliveProcess(void)
 
     if ( (iSystemTime[4] == 0) && (iSystemTime[5] == 0))        
     {
-        for (i=0;i<MAX_POWER_METER;i++)
+        for (i=0;i<PwrMeterMax;i++)
         {
             if ( PowerMeterTxCounter[i] > 10 )
             {
@@ -274,38 +275,39 @@ void Host_AliveProcess(void)
     
 }
 
-void Host_GetDeviceDataProcess(void)
+/***	Process the device sub cmd from Center 	***/
+//	Using Cmd list store the cmds, and do the Cmds in the meter board polling states
+void Host_PowerMeterDataProcess(void)
 {
-    uint8_t i;
-	  //u8BuferIndex;
-    //uint8_t HostData_P,HostData_N;
-    //uint8_t CmdOpenDoor1,CmdOpenDoor2;
-    
-    for (i=0;i<7;i++)
-    {
-        iSystemTime[i] = TokenHost[INX_TIME_START_Y+i];
-    }
     HostPollingDeviceIdx = TokenHost[3];
-/*    
-    HostData_P = TokenHost[3];
-    HostData_N =  TokenHost[4];
-    if ( HostData_P == (255-HostData_N) )
-    {
-        MaxPowerMeter = HostData_P;
-    }
-    HostData_P = TokenHost[5];
-    HostData_N =  TokenHost[6];
-    if ( HostData_P == (255-HostData_N) )
-    {
-        for (i=0;i<MAX_POWER_METER;i++)
-        MeterErrorRate[i] = 100;
-        MeterErrorRate_Tx[i] = 1;
-        MeterErrorRate_Rx[i] = 1;
-    }
-*/    
-    
+		PwrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+
+		CalChecksumH();
 }
 
+void Host_BmsDataProcess(void)
+{   
+    HostPollingDeviceIdx = TokenHost[3];
+		BmsCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+	
+		CalChecksumH();
+}
+
+void Host_WMDataProcess(void)
+{
+    HostPollingDeviceIdx = TokenHost[3];
+		WtrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+	
+		CalChecksumH();
+}
+
+void Host_InvDataProcess(void)
+{  
+    HostPollingDeviceIdx = TokenHost[3];
+		InvCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+		
+		CalChecksumH();
+}
 
 /* Get Cmd From Center
 0: 0x55
@@ -399,51 +401,13 @@ void SendHost_PowerData(void)
     HostTxBuffer[3] = fgToHostFlag; 	
     HostTxBuffer[4] = u8PowerMeterID ; 	
     fnPacketIndex = 5;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].PayMode ;
     HostTxBuffer[fnPacketIndex++] = MeterErrorRate[u8PowerMeterID];    
     HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].RelayStatus;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].UserStatus;
     // Total 
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterTotalWatt & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterTotalWatt & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterTotalWatt & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterTotalWatt & 0x000000FF ;
-    // 49 Power Meter : Voltage	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterValtage & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterValtage & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterValtage & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterValtage & 0x000000FF ;
-    // 53 Power Meter : Current	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterCurrent & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterCurrent & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterCurrent & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterCurrent & 0x000000FF ;
-    // 57 Power Meter : Freq. 		
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterFreq & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterFreq & 0x000000FF ;
-    // 59 Power Meter : Power Factor		
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterPowerFactor & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterPowerFactor & 0x000000FF ;
-    // 61 Power Meter : Active Power	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterActPower & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterActPower & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterActPower & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterActPower & 0x000000FF ;
-    // 65 Power Meter : VA	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterVA & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterVA & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterVA & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterVA & 0x000000FF ;
-    // 69 Power Meter Balance	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterBalance& 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterBalance & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].MeterBalance & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].MeterBalance & 0x000000FF ;
-    // 73 Power Meter : User UID	
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].UserUID & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].UserUID & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].UserUID & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].UserUID & 0x000000FF ;
+    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].TotalWatt & 0x000000FF ;
 
     CalChecksumH();			
 	

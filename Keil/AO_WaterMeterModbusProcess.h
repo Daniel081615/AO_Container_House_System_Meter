@@ -34,8 +34,8 @@ enum DefineModbusWM_Cmds
 
 typedef struct{
 	uint32_t WMDeviceNG;
-	uint8_t Success[WMDeviceMax];
-	uint8_t Fail[WMDeviceMax];
+	uint8_t Success[WtrMeterMax];
+	uint8_t Fail[WtrMeterMax];
 	uint8_t ErrorRate;
 }WMError_t;
 
@@ -45,6 +45,6 @@ typedef struct {
 } WMData_t;
 
 extern WMError_t WMError;
-extern WMData_t  WMData[WMDeviceMax];
+extern WMData_t  WMData[WtrMeterMax];
 
 #endif	//AO_WaterMeterModbusProcess.h
