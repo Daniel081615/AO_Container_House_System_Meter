@@ -1,0 +1,27 @@
+--cpu Cortex-M0
+".\objects\system_nuc1261.o"
+".\objects\startup_nuc1261.o"
+".\objects\main.o"
+".\objects\ao_bmsmodbusprocess.o"
+".\objects\ao_ee24c.o"
+".\objects\ao_hostprocess.o"
+".\objects\ao_invertermodbusprocess.o"
+".\objects\ao_meterprocess.o"
+".\objects\ao_modbusprocess.o"
+".\objects\ao_readerprocess.o"
+".\objects\ao_watermetermodbusprocess.o"
+".\objects\ao2022_metermodule_1261.o"
+".\objects\fmc_user.o"
+".\objects\ota_manager.o"
+".\objects\clk.o"
+".\objects\crc.o"
+".\objects\fmc.o"
+".\objects\i2c.o"
+".\objects\retarget.o"
+".\objects\sys.o"
+".\objects\uart.o"
+".\objects\wdt.o"
+--library_type=microlib --nodebug --strict --scatter ".\Objects\ContainerHouseSystem_Meter.sct"
+--map --first='startup_NUC1261.o(RESET)' --datacompressor=off --info=inline --entry Reset_Handler --summary_stderr --info summarysizes --map --load_addr_map_info --symbols
+--info sizes --info totals
+--list ".\Listings\ContainerHouseSystem_Meter.map" -o .\Objects\ContainerHouseSystem_Meter.axf
