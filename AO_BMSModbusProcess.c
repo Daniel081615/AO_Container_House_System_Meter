@@ -819,6 +819,7 @@ void Bms_Init(void)
 				ModeFlags |= MODBUS_FLAG_TIMED_STORED_DATA;
 				MODBUS_SendBMSCmd(MDBS_SET_MODES);
 				
+				Delay_10ms(20);
 				//	Set cell number 16 a set
 				MODBUS_SendBMSCmd(MDBS_SET_CELLCOUNT);
 		}
@@ -826,18 +827,24 @@ void Bms_Init(void)
 
 _Bool ScannSetBmsAddr(void)
 {
-		UART2_ChangeBaudrate(115200);
+		UART2_Init(115200);
+		Delay_10ms(60);
+	
 		for (uint8_t i =1; i < 247; i++)
 		{
 				PollingBmsID = i;
 				BmsNewAddr = 0x01;
 				MODBUS_SendBMSCmd(MDBS_SET_BMS_DEVICE_ADDR);
-			
-				if (GotDeviceRsp != 0xff)
+				
+				Delay_10ms(20);
+				
+				if (TokenMeterReady != 0x00)
 				{
 						PollingBmsID = 1;
+						TokenMeterReady = 0x00;
 						return 1;
-				}
+				}	
+			
 		}
 		return 0;
 }

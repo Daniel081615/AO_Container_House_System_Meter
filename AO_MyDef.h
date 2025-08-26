@@ -404,8 +404,8 @@ enum DEFINE_POWER_METER_STATE {
 
 #define NODE_TIME_SYNC				0x40
 
-#define RELAY_ON	        0x01
-#define RELAY_OFF	0x02
+#define RELAY_ON	0x01
+#define RELAY_OFF	0x00
 
 // Meter => Center
 
@@ -451,7 +451,7 @@ enum DEFINE_POWER_METER_STATE {
 
 enum DEFINE_RS485_METER_TOKEN {
 
-METER_CMD_ALIVE=0x10,			//0x10			
+METER_CMD_ALIVE=0x10,				//0x10			
 METER_GET_CMD_POWER_METER,
 METER_GET_CMD_BMS,
 METER_GET_CMD_WATER_METER,
@@ -580,12 +580,6 @@ typedef struct strUserInfo {
 	uint32_t StartMeter;		//扣款結束	
 	float StartBalance;			//扣款結束	
 } STR_UserInfo;
-
-typedef struct strRoomInfo {		
-    uint8_t Status;    
-    uint8_t RoomMode;			// 目前計費模式(免費/停用/計費關電/計費開電)
-    
-} STR_RoomSysData;
 
 typedef struct STR_TIME_FORMAT {    
 	uint8_t tYear;

@@ -136,7 +136,7 @@ void HostProcess(void)
                 fgFromHostFlag = TokenHost[3];
                 fgFromHostRSPFlag = TokenHost[4];
                 fgToHostFlag &= fgFromHostRSPFlag;
-                LED_R_TOGGLE();                    
+                LED_R_TOGGLE();
                 fgToHostRSPFlag = 0xFF ;                
 								// Token ready
                 switch( TokenHost[2] )
@@ -187,6 +187,7 @@ void HostProcess(void)
         if ( iTickDelaySendHostCMD > WaitTime)
         {
             bDelaySendHostCMD = 0 ;
+						//	??
             if ( (HostMeterIndex+1) == MyMeterBoardID )
             {
                 switch (CmdType)
@@ -281,7 +282,10 @@ void Host_PowerMeterDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
 	
-		PwrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+		if (TokenHost[4] != 0x00)
+		{
+				PwrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+		}
 }
 
 void Host_BmsDataProcess(void)
@@ -289,22 +293,29 @@ void Host_BmsDataProcess(void)
     HostPollingDeviceIdx = TokenHost[3];
 	
 		
-		BmsCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
-		//	Bms Cmd state: Set Bms mode
-		if ((TokenHost[4]) == 0x0B)
+			if (TokenHost[4] != 0x00)
 		{
-				ModeFlags = (TokenHost[5] >> 8) + TokenHost[6];
-		} 
-		//	Bms Cmd state: Set Bms Addr
-		else if ((TokenHost[4]) == 0x0C){
-				BmsNewAddr = TokenHost[5];
-		}
+				BmsCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+			
+				if ((TokenHost[4]) == 0x0B)
+				{		//	Bms Cmd state: Set Bms mode
+						ModeFlags = (TokenHost[5] >> 8) + TokenHost[6];
+				} else if ((TokenHost[4]) == 0x0C){	
+						//	Bms Cmd state: Set Bms Addr
+						BmsNewAddr = TokenHost[5];
+				}
+		}	
+
 }
 
 void Host_WMDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
-		WtrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
+	
+		if (TokenHost[4] != 0x00)
+		{
+				WtrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+		}
 }
 
 void Host_InvDataProcess(void)
@@ -400,7 +411,7 @@ void SendHost_SystemInformation(void)
 void SendHost_PowerData(void)
 {
     uint8_t fnPacketIndex,u8PowerMeterID;
-    //uint8_t *tmpAddr;
+	
     u8PowerMeterID = HostPollingDeviceIdx-1;
     HostTxBuffer[2] = METER_RSP_POWER_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	

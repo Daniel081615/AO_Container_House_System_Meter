@@ -324,7 +324,7 @@ void WtrMeter_Init(void)
 
 _Bool ScannSetWTRMeterAddr(int baudrate)
 {
-    UART2_ChangeBaudrate(baudrate);
+    UART2_Init(baudrate);
 	
     for (uint8_t i = 1; i < 247; i++)
     {
@@ -333,9 +333,12 @@ _Bool ScannSetWTRMeterAddr(int baudrate)
 				WMBaudRate= 0x03;			// 2400 baud
         MODBUS_SendWMCmd(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
 			
-        if (GotDeviceRsp != 0xff)
+				Delay_10ms(20);
+			
+        if (TokenMeterReady != 0x00)
         {
             PollingMeterID = 1;
+						TokenMeterReady = 0x00;
             return 1;
         }
     }

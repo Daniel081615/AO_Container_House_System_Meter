@@ -68,7 +68,6 @@
 
 
 uint8_t MaxPowerMeter;
-STR_RoomSysData RoomData;
 STR_METER_D MeterData[PwrMeterMax];
 uint8_t RoomMode[PwrMeterMax];
 
@@ -274,12 +273,9 @@ uint16_t Tick10mS_FTUR2,Tick5mS_CheckRoomMode,FreqMixValue;
 uint8_t RelayOffCnt;
 uint8_t tmpMemberMode[3];
 uint8_t RoomModeCheckCounter[PwrMeterMax];
-uint8_t PwrMeterCmdList[PwrMeterMax];
-uint8_t Tick1S_DoubleCheckRoomMode;
 
 //	Devices 
 uint8_t PwrMtrModbusCmd, BmsModbusCmd, WtrMtrModbusCmd, InvModbusCmd;
-uint8_t PwrMeterCmdList[PwrMeterMax];
 uint8_t BmsCmdList[BmsMax];
 uint8_t WtrMeterCmdList[WtrMeterMax];
 uint8_t InvCmdList[InvMax];
@@ -340,7 +336,7 @@ void CheckRoomMode(void);
 void SystemPolling(void);
 void ModbusDataProcess(void);
 void InitDevicesSetUp(void);
-void UART2_ChangeBaudrate(uint32_t u32baudrate);
+void Delay_10ms(uint8_t ms);
 
 /**
  * @brief       IRQ Handler for WDT Interrupt
@@ -406,7 +402,6 @@ void SysTick_Handler(void)
     {
         Tick_10mSec = 0 ;	
         Time_Sec++;
-        Tick1S_DoubleCheckRoomMode++;
         Tick1S_ErrorRateGap++;  
         if ( Tick1S_ErrorRateGap >= 300 )
         {
@@ -1107,7 +1102,7 @@ int main()
   uint8_t i,j;
 	
 	uint32_t rst = SYS->RSTSTS;
-	SYS->RSTSTS = rst;  // æ¸…é™¤
+	SYS->RSTSTS = rst;
 	//rst & SYS_RSTSTS_WDTRF_Msk
 
 
@@ -1131,15 +1126,6 @@ int main()
 	//}
 	/* Enable WDT NVIC */
 	//NVIC_EnableIRQ(WDT_IRQn);
-	
-	
-
-	/* Configure WDT settings and start WDT counting */
-	//g_u32WDTINTCounts = g_u8IsWDTWakeupINT = 0;
-	//WDT_Open(WDT_TIMEOUT_2POW14, WDT_RESET_DELAY_1026CLK, TRUE, TRUE);
-
-	/* Enable WDT interrupt function */
-	//WDT_EnableInt();
 		
 	GPIO_Mode_Init();
 	ROOM_POWER_On();
@@ -1197,24 +1183,18 @@ int main()
 	DisableHostUartTx();
 	NVIC_EnableIRQ(UART1_IRQn);
 	NVIC_EnableIRQ(UART02_IRQn);
-/*
-	for(i=0;i<10;i++)
-		HostTxBuffer[i] = i +0x30 ;
-	//EnableHostUartTx();
-	_SendStringToHOST(HostTxBuffer,10);
 
-*/	
 	
 	SoftI2cMasterInit();
 	//TestI2C_RWEEPROM();
 	WDT_RESET_COUNTER();
 	
-	STR_METER_D MD;
-	for(uint8_t i=0; i < PwrMeterMax; i++)
-	{
-		I2cReadDataStruct(i, &MD);
-		MeterData[i] = MD;
-	}
+//	STR_METER_D MD;
+//	for(uint8_t i=0; i < PwrMeterMax; i++)
+//	{
+//		I2cReadDataStruct(i, &MD);
+//		MeterData[i] = MD;
+//	}
 		
 	//SendReader_Alive();
 	//while(1);
@@ -1236,17 +1216,13 @@ int main()
 	MeterValueTest = 10000 ;
 #endif 	 	
 	
-	ReadMyMeterBoardID();
-	u32TimeTick2=0;  
-	// Delay for System stable
-	do {
-		SystemTick = 0 ;		
-	} while( u32TimeTick2 < 75 ); 
+		ReadMyMeterBoardID();
+
+		Delay_10ms(75);				// Delay for System stable
 		
-	SoftI2cMasterInit();
+		SoftI2cMasterInit();
     
-    ReadMyMeterBoardID();	
-    RoomData.RoomMode = RM_FREE_MODE_READY ;	
+    ReadMyMeterBoardID();		
     fgToReaderRSPFlag = 0xFF;
     fgToHostRSPFlag = 0xFF ;	        
     MeterActive = 0x01 ;
@@ -1281,7 +1257,6 @@ SystemTick = 0 ;
 	//DIR485_READER_In();
 	//LastMeterPower[0] = TotalWattValue_Now ;
 	
-	ReaderPollingState = PL_STATUS ;
 	u32TimeTick2=0;   
 	bRegister = 1 ;
 	fgToReaderFlag = 0x40 ;
@@ -1295,26 +1270,18 @@ SystemTick = 0 ;
 	MeterPollingState = MP_READY;
 	//TickReadPowerTime = 0 ;
 	PowerOnReadMeter = 1 ;
-	ReadMeterTime = 5 ;	 	// Reading Power Meter per 5 x 20 mSec	
 
 #ifdef METER_TEST 
 	MeterValueTest = 10000 ;
 #endif 
 
-RoomData.Status = 0x07 ;
-
-	
 	ReadMeterTime = 40 ;	 	// Reading Power Meter per 40 x 20 mSec
-	Tick1S_DoubleCheckRoomMode = 0 ;    
 
-/**	@Bms, @WtrMtr & @PwrMtr test function	**/
-Bms_Init();
-WtrMeter_Init();
-MeterDEM_510c_Init();
+		/**	@Bms, @WtrMtr & @PwrMtr test function	**/
+		MeterDEM_510c_Init();
+		Bms_Init();
+		WtrMeter_Init();
 
-
-
-	// Main Loop ~ 
     do {
         //RoomData.RoomMode = RM_POWER_OFF_READY ;
 				WDT_RESET_COUNTER();
@@ -1367,7 +1334,6 @@ void CalErrorRate(void)
 {
     uint8_t i,j;
 	
-/***/		
 		//	Bms error rate calculation
 		for (uint8_t i = 0; i < PwrMeterMax; i++ )
 		{
@@ -1406,7 +1372,6 @@ void CalErrorRate(void)
 		} else {
 				InvError.ErrorRate = 0;
 		}		
-/***/		
         
     MeterErrorRate_Tx[0] = 0 ;
     MeterErrorRate_Rx[0] = 0 ;
@@ -1437,7 +1402,7 @@ void CalErrorRate(void)
     }
 }
 
-// TIME_DCHECK_MODE * 20mSec ¶¡®æ®É¶¡ÀË¬d¹q·½¼Ò¦¡¨Ã¦A¦¸¤Á´«Ä~¹q¾¹
+// TIME_DCHECK_MODE * 20mSec
 #define TIME_DCHECK_MODE	25
 
 
@@ -1707,13 +1672,13 @@ enum DefineDevicePolling{
  ***/
 void SystemPolling(void)
 {
-		static uint32_t pollingTimer = 0;
-		static const uint32_t pollingInterval = 1000;
+//		UART_Close(UART2);
+//		UART2_Init(115200);
+
 
 		switch (SystemPollingState)
     {
 				case SYSTEM_POLLING_READY:
-						
 						SystemPollingState +=  SystemPollingStateIndex;
 						
 						if ((SystemPollingState) > SYSTEM_POLLING_INV){
@@ -1721,15 +1686,18 @@ void SystemPolling(void)
 						} else {
 								SystemPollingStateIndex++;
 						}
-						SystemPollingState = (SYSTEM_POLLING_METER + SystemPollingStateIndex -1);
+						//SystemPollingState = (SYSTEM_POLLING_METER + SystemPollingStateIndex -1);
 						
 						break;
 					
         case SYSTEM_POLLING_METER:
+				
             if (!MeterPollingFinishedFlag) {
-								UART2_ChangeBaudrate(115200);
+//								SYS_ResetModule(UART2_RST);
+//								UART_Open(UART2, 2400);
 								MeterPolling();
             } else {
+								UART2_Init(115200);
 								MeterPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
 						}
@@ -1737,9 +1705,10 @@ void SystemPolling(void)
 
         case SYSTEM_POLLING_BMS:
             if (!BmsPollingFinishedFlag) {
-								UART2_ChangeBaudrate(2400);
+								
 								BmsPolling();
             } else {
+								UART2_Init(2400);
 								BmsPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
 						}
@@ -1748,7 +1717,6 @@ void SystemPolling(void)
 				case SYSTEM_POLLING_WM:
             
             if (!WMPollingFinishedFlag) {
-								UART2_ChangeBaudrate(2400);
 								WMPolling();
             } else {
 								WMPollingFinishedFlag = FALSE;
@@ -1759,7 +1727,6 @@ void SystemPolling(void)
 				case SYSTEM_POLLING_INV:
 					
             if (!INVPollingFinishedFlag) {
-								UART2_ChangeBaudrate(2400);
 								INVPolling();
             } else {
 								INVPollingFinishedFlag = FALSE;
@@ -1833,32 +1800,17 @@ void InitDevicesSetUp(void)
 		//Setup WaterMeter Device 
 		PollingWMID = 0x01;
 	
-	
 }
 
-void UART2_ChangeBaudrate(uint32_t u32baudrate) {
-    uint8_t u8UartClkSrcSel, u8UartClkDivNum;
-    uint32_t u32ClkTbl[4] = {__HXT, 0, __LXT, __HIRC};
-    uint32_t u32Baud_Div = 0;
-    
-    if(u32baudrate == 0) {
-        return;
-    }
-
-    u8UartClkSrcSel = (CLK->CLKSEL1 & CLK_CLKSEL1_UARTSEL_Msk) >> CLK_CLKSEL1_UARTSEL_Pos;
-    u8UartClkDivNum = (CLK->CLKDIV0 & CLK_CLKDIV0_UARTDIV_Msk) >> CLK_CLKDIV0_UARTDIV_Pos;
-
-
-    if(u8UartClkSrcSel == 1) {
-        u32ClkTbl[u8UartClkSrcSel] = CLK_GetPLLClockFreq();
-    }
-
-    u32Baud_Div = UART_BAUD_MODE2_DIVIDER((u32ClkTbl[u8UartClkSrcSel]) / (u8UartClkDivNum + 1), u32baudrate);
-    if(u32Baud_Div > 0xFFFF) {
-        UART2->BAUD = (UART_BAUD_MODE0 | UART_BAUD_MODE0_DIVIDER((u32ClkTbl[u8UartClkSrcSel]) / (u8UartClkDivNum + 1), u32baudrate));
-    } else {
-        UART2->BAUD = (UART_BAUD_MODE2 | (u32Baud_Div));
-    }
+void Delay_10ms(uint8_t ms)
+{
+		u32TimeTick2 = 0;
+		do {
+				SystemTick = 0 ;		
+				WDT_RESET_COUNTER();
+		} while( u32TimeTick2 < ms ); 
 }
+
+
 
 /*** (C) COPYRIGHT 2022 AO Technology Corp. ***/

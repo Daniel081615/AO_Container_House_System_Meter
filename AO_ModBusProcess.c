@@ -73,7 +73,7 @@ uint8_t uchCRCHi = 0xFF;  /* high byte of CRC initialized */
 uint8_t uchCRCLo = 0xFF;  /* low byte of CRC initialized */
 
 uint8_t bReadPowerMeterValue,ModBusStep;
-uint8_t PowerMeterBaudRate,RelayOnOff, ModeEnDis_ABL;
+uint8_t PowerMeterBaudRate,MtrRelayOnOff, ModeEnDis_ABL;
 uint8_t MeterMBCmd;
 uint8_t PayMode,u8Year,u8Month,u8Day,u8Hour,u8Min,u8Sec,u8Week;
 
@@ -112,7 +112,7 @@ void BAW2A_GetStatus(void);
 void BAW2A_GetCardID(void);
 
 void MeterDEM_510c_Init(void);
-static int ScanAndSetMeter(int baudrate);
+int ScanAndSetMeter(int baudrate);
 
 void CRC16(unsigned char *puchMsg,unsigned short usDataLen);
 
@@ -154,6 +154,7 @@ void MODBUS_SendCmd(uint8_t cmd)
 				CmdModBus_E21nE31(cmd);
 				break;
 			case DEM_510c:
+				CmdModBus_DEM_510c(cmd);
 				break;
 		}	    
 }
@@ -316,7 +317,7 @@ void BAW2A_SetRelay(void)
     MeterTxBuffer[5]=0x01;          // Data 3 
     MeterTxBuffer[6]=0x02;          // Data 3 
     MeterTxBuffer[7]=0x00;          // Data 3 
-    if ( RelayOnOff )
+    if ( MtrRelayOnOff )
     {
     MeterTxBuffer[8]=0x01;          // Data 3 
     } else {
@@ -587,7 +588,7 @@ void BAW2A_GetCardID(void)
     _SendStringToMETER(MeterTxBuffer,8);   	
 }
 
-//巧力預付型電表 
+
 void CmdModBus_BAW2A(uint8_t PwrMtrModbusCmd)
 {
 	// 010300000003	
@@ -708,7 +709,7 @@ void CmdModBus_E21nE31(uint8_t ModBusCmd)
 			MeterTxBuffer[4]=0x00;          // Data 2
 			MeterTxBuffer[5]=0x01;          // Data 3 
 			MeterTxBuffer[6]=0x02;          // Data 3 
-			MeterTxBuffer[7]=RelayOnOff;          // Data 3 
+			MeterTxBuffer[7]=MtrRelayOnOff;          // Data 3 
 			MeterTxBuffer[8]=0x00;          // Data 3 
 			CRC16(MeterTxBuffer,9);
 			MeterTxBuffer[9]=uchCRCHi;      // // CRC Checksum 
@@ -803,7 +804,7 @@ void CmdModBus_DEM_510c(uint8_t PwrMtrModbusCmd)
 			MeterTxBuffer[1]=0x05;          // Function 
 			MeterTxBuffer[2]=0x00;          // Data 0
 			MeterTxBuffer[3]=0x00;          // Data 1
-			if ( RelayOnOff ){
+			if ( MtrRelayOnOff ){
 				MeterTxBuffer[4]=0xFF;          // Data 3 
 			} else {
 				MeterTxBuffer[4]=0x00;          // Data 3 
@@ -828,9 +829,9 @@ void CmdModBus_DEM_510c(uint8_t PwrMtrModbusCmd)
 			break;
 		case MDBS_METER_SET_ADDR : 
 			MeterMBCmd = MDBS_METER_OTHER ;
-			MeterTxBuffer[1]=0x10;          // Function 
+			MeterTxBuffer[1]=0x05;          // Function 
 			MeterTxBuffer[2]=0x00;          // Data 0
-			MeterTxBuffer[3]=0x30;          // Data 1
+			MeterTxBuffer[3]=0x28;          // Data 1
 			MeterTxBuffer[4]=0x00;          // Data 2
 			MeterTxBuffer[5]=0x01;          // Data 3 
 			MeterTxBuffer[6]=0x02;          // Data 3 
@@ -855,7 +856,7 @@ void CmdModBus_DEM_510c(uint8_t PwrMtrModbusCmd)
 			CRC16(MeterTxBuffer,6);
 			MeterTxBuffer[6]=uchCRCHi;
 			MeterTxBuffer[7]=uchCRCLo;
-			_SendStringToMETER(MeterTxBuffer,11);   
+			_SendStringToMETER(MeterTxBuffer,8);   
 			break;			
 		case MDBS_METER_SET_BAUDRATE : 
 			MeterMBCmd = MDBS_METER_OTHER ;
@@ -912,15 +913,21 @@ void CRC16(uint8_t *puchMsg, uint16_t usDataLen)
 void MeterDEM_510c_Init(void)
 {
     const int baudrates[] = {2400, 4800, 9600, 1200};
-    const int numBaudrates = sizeof(baudrates) / sizeof(baudrates[0]);
+    const int numBaudrates = 3;
 		
     for (int i = 0; i < numBaudrates; i++)
     {
         if (ScanAndSetMeter(baudrates[i]))
         {
-            MODBUS_SendCmd(MDBS_METER_SET_ADDR_PWD);
-            PowerMeterNewBaudRate = 0x01; // 2400 BaudRate
+						//	Set new power meter device address
+						PowerMeterNewAddr = 0x01;
+            MODBUS_SendCmd(MDBS_METER_SET_ADDR);
+						Delay_10ms(20);
+							
+						//	Set baud power meter rate 2400 bps 
+            PowerMeterNewBaudRate = 0x01;
             MODBUS_SendCmd(MDBS_METER_SET_BAUDRATE);
+						Delay_10ms(20);
             break;
         }
     }
@@ -928,6 +935,8 @@ void MeterDEM_510c_Init(void)
 		PowerMeterMode = 0x0A;
 		ModeEnDis_ABL = 0;
 		MODBUS_SendCmd(MDBS_METER_SET_MODE);
+		
+		Delay_10ms(20);
 		//	Disable PC AddValue Mode
 		PowerMeterMode = 0x0B;
 		ModeEnDis_ABL = 0;
@@ -936,18 +945,23 @@ void MeterDEM_510c_Init(void)
 }
 
 
-static int ScanAndSetMeter(int baudrate)
+int ScanAndSetMeter(int baudrate)
 {
-    UART2_ChangeBaudrate(baudrate);
+    UART2_Init(baudrate);
+	
+		Delay_10ms(60);
 	
     for (uint8_t i = 0; i < 255; i++)
     {
         PollingMeterID = i;
         PowerMeterNewAddr = 0x01;
-        MODBUS_SendCmd(MDBS_METER_SET_ADDR);
+        MODBUS_SendCmd(MDBS_METER_GET_RELAY);
 			
-        if (GotDeviceRsp != 0xff)
+				Delay_10ms(20);
+			
+        if (TokenMeterReady != 0x00)
         {
+						TokenMeterReady = 0x00;
             PollingMeterID = 1;
             return 1;
         }

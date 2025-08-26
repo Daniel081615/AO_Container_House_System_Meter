@@ -82,7 +82,6 @@ extern uint8_t RecordWp,RecordRp,RecordCounter,TickRecord;
 extern uint32_t    PowerMeterError;
 extern uint8_t MeterActive;
 
-extern STR_RoomSysData RoomData;
 //extern STR_UserInfo Members[MEMBER_MAX_NO];
 extern STR_METER_D MeterData[PwrMeterMax];
 extern uint8_t ControlState;
@@ -148,7 +147,7 @@ extern uint8_t MeterPollingState,MeterError,TickPollingInterval;
 extern uint8_t PwrMtrModbusCmd, BmsModbusCmd, WtrMtrModbusCmd, InvModbusCmd;
 extern uint16_t  TickReadPowerTime,ReadMeterTime;
 
-extern uint8_t  DelayTime4NextCmd,RelayOnOff,CenterRoomMode;
+extern uint8_t  DelayTime4NextCmd,MtrRelayOnOff,CenterRoomMode;
 
 extern uint8_t ButtonStatus,METER_RXQLen;
 extern uint8_t AckResult,MemberBase;
@@ -179,7 +178,7 @@ extern uint8_t METERRxQ_wp,METERRxQ_rp,METERRxQ_cnt;
 
 
 extern uint8_t GotDeviceRsp;
-extern uint8_t PwrMeterCmdList[PwrMeterMax];
+extern volatile uint8_t PwrMeterCmdList[PwrMeterMax];
 extern uint8_t BmsCmdList[BmsMax];
 extern uint8_t WtrMeterCmdList[WtrMeterMax];
 extern uint8_t InvCmdList[InvMax];
@@ -198,10 +197,15 @@ extern void CmdModBus_DEM5x0(uint8_t ModBusCmd);
 extern uint16_t ModeFlags, CellCount;
 extern uint8_t WMBaudRate, WMSetDeviceID;
 
-extern void UART2_ChangeBaudrate(uint32_t u32baudrate);
+extern void UART2_Init(uint32_t u32baudrate);
 extern void MeterDEM_510c_Init(void);
 extern void Bms_Init(void);
 extern void WtrMeter_Init(void);
+extern void Delay_10ms(uint8_t ms);
+
+extern uint16_t SystemTick;
+extern volatile uint32_t u32TimeTick2;
+extern int ScanAndSetMeter(int baudrate);
 
 //extern _Bool fgUartReaderBusy;
 #ifdef METER_TEST
