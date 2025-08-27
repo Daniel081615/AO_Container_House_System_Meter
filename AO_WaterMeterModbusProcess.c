@@ -83,12 +83,6 @@ void WMPolling(void)
 										WMPollingState = WM_POLLING_WATER_CONSUMPTION_CMD;
 										WMPollingStateIndex = 0;
 										PollingWMID++;
-										WMPollingFinishedFlag = TRUE;
-									
-										if ( PollingWMID > WtrMeterMax )
-										{
-												PollingWMID = 1 ;
-										}
 								}
 						} else {
 								WtrMtrModbusCmd =  WtrMeterCmdList[PollingWMID-1];

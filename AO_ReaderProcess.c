@@ -18,7 +18,7 @@
 
 uint8_t ReaderMode,ReaderUser;
 uint8_t ReaderUID[4];
-uint8_t ErrorTimes,ModeSyncError,PackageMax,ReaderResult;
+uint8_t ErrorTimes,PackageMax,ReaderResult;
 _Bool fgReaderInitCompleted;
 uint8_t ELockDataErrorCounter;
 uint8_t ErrorCounter;
@@ -26,9 +26,6 @@ uint8_t GetMemberInfoIndex;
 uint8_t GotRecordNewCounter;
 uint8_t ReaderStatus;
 uint8_t LastRecordWP,LastNewRecordCounter;
-
-//extern _Bool fgUartReaderBusy;
-extern uint8_t fgReaderSync;
 
 void ReaderProcess(void);
 void CalChecksumR(void);

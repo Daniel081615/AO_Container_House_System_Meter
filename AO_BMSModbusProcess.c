@@ -59,6 +59,7 @@ uint16_t BmsMBCmd, ModeFlags, CellCount;
 _Bool BmsPollingFinishedFlag;
 
 
+/**	RTC GPIO Auto	watering**/
 
 /***
  *	@function		BmsPolling()
@@ -93,12 +94,7 @@ void BmsPolling(void)
 								
 								if (BmsPollingState > BMS_POLLING_BAT_TEMP5_CMD)
 								{
-										BmsPollingFinishedFlag = TRUE;
 										PollingBmsID++;
-										if (PollingBmsID > MaxBmsDevices)
-										{
-												PollingBmsID = 1 ;
-										}
 										BmsPollingState = BMS_POLLING_CELL_V_CMD;
 										BmsPollingStateIndex = 0;
 								}

@@ -64,7 +64,7 @@ extern void EnableHostUartTx(void);
 extern void DisableHostUartTx(void);
 extern uint8_t _SendStringToMETER(uint8_t *Str, uint8_t len);
 extern uint8_t PollingMeterID;
-extern uint8_t MaxPowerMeter;
+extern uint8_t MaxPowerMeter, MaxBmsDevices;
 extern uint16_t Tick1S_ErrorRateGap;
 extern uint8_t PayMode;
 extern uint8_t RoomMode[PwrMeterMax];
@@ -131,7 +131,7 @@ extern uint8_t NewRecordCounter, Record_WP, Record_RP;
 
 extern uint8_t PowerMeterID;
 extern uint8_t PowerMeterNewAddr, BmsNewAddr;
-extern uint8_t PowerMeterNewBaudRate, PowerMeterMode;
+extern uint8_t PowerMeterNewBaudRate, PowerMeterMode, PowerMeterDO_OnOff, PowerMeterDOLock;
 extern uint8_t bReadPowerMeterValue;
 
 extern uint8_t uchCRCHi;  /* high byte of CRC initialized */
@@ -183,7 +183,6 @@ extern uint8_t BmsCmdList[BmsMax];
 extern uint8_t WtrMeterCmdList[WtrMeterMax];
 extern uint8_t InvCmdList[InvMax];
 
-extern uint16_t Tick5mS_CheckRoomMode;
 
 extern _Bool fgFirstStart;
 

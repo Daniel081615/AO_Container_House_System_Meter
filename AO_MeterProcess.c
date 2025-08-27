@@ -48,6 +48,8 @@ uint16_t Tick10mSec_PowerMeterInit;
 
 /***
  *	@brief	Need to revise the Cmd Process of DEM_510c
+ *	@Problem encounter : When Cmd relay on, Polling process will do cmd than go poll the next device, 
+												 when meter didn't do the  "get_relay" state process, meter relay will turn off in few sec.
  ***/
 
 void MeterPolling(void)
@@ -68,11 +70,6 @@ void MeterPolling(void)
                     MeterPollingState = MP_POLLING_W_CMD ;
                     PollingStateIndex = 0 ;
                     PollingMeterID++;
-                    if ( PollingMeterID > MaxPowerMeter )
-                    {
-                        PollingMeterID = 1 ;
-                    }
-										MeterPollingFinishedFlag = TRUE;
                 }
                 PowerMeterID = PollingMeterID ;
             } else {
@@ -86,18 +83,26 @@ void MeterPolling(void)
                         break;
                     case MBPMCMD_RELAY_ON :
                         MtrRelayOnOff = 1 ;
-                        MeterPollingState = MP_SET_RELAY ;
+                        MeterPollingState = MP_SET_DO_ON ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_RELAY_OFF :										
                         MtrRelayOnOff = 0 ;
-                        MeterPollingState = MP_SET_RELAY ;
+                        MeterPollingState = MP_SET_DO_OFF ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
 										case MBPMCMD_SET_ADDR:
 												MeterPollingState = MP_SET_ADDR ;
                         PwrMtrMBCmd = MBPMCMD_READY;
 												break;
+										case MBPMCMD_SET_DOLOCK_ON:
+												MeterPollingState = MP_SET_DO_LOCK_ON ;
+                        PwrMtrMBCmd = MBPMCMD_READY;
+												break;
+										case MBPMCMD_SET_DOLOCK_OFF:
+												MeterPollingState = MP_SET_DO_LOCK_OFF ;
+                        PwrMtrMBCmd = MBPMCMD_READY;
+												break;										
                     default :
                         break;
                 }
@@ -121,14 +126,41 @@ void MeterPolling(void)
             MeterPollingState = MP_POLLING_RSP ; 
             TickPollingInterval = 0 ;			
             break;
-        case MP_SET_RELAY :	
+        case MP_SET_DO_ON :
+						//	DO on
+						PowerMeterDO_OnOff = 1;
+            MODBUS_SendCmd(MDBS_METER_SET_DO);
+            MeterPollingState = MP_READY ;
+            break;				
+        case MP_SET_DO_OFF :
+						//	DO off
+						PowerMeterDO_OnOff = 0;
+            MODBUS_SendCmd(MDBS_METER_SET_DO);
+            MeterPollingState = MP_READY ;
+            break;
+        case MP_SET_DO_LOCK_ON :
+						//	DO on
+						PowerMeterDOLock = 1;
+            MODBUS_SendCmd(MDBS_METER_SET_DO_LOCK);
+            MeterPollingState = MP_READY ;
+            break;				
+        case MP_SET_DO_LOCK_OFF :
+						//	DO off
+						PowerMeterDOLock = 0;
+            MODBUS_SendCmd(MDBS_METER_SET_DO_LOCK);
+            MeterPollingState = MP_READY ;
+            break;				
+				case MP_SET_RELAY :
             MODBUS_SendCmd(MDBS_METER_SET_RELAY);
             MeterPollingState = MP_READY ;
-            break;		
-        case MP_SET_ADDR :	
+            break;
+
+				
+				case MP_SET_ADDR :	
             MODBUS_SendCmd(MDBS_METER_SET_ADDR);
             MeterPollingState = MP_READY ;
-            break;			
+            break;
+				
         default :
             MeterPollingState = MP_READY ;
             break;
@@ -214,7 +246,6 @@ void MeterDataProcess(void)
 								}		
 						}		
 				}
-				
 
 				if ( MeterMBCmd == MDBS_METER_GET_RELAY )
 				{
@@ -256,35 +287,12 @@ void MeterDataProcess(void)
 									break;
 									
 								case DEM_510c :
-									//	
+
 									if (TokenMeter[4] & 0x01)
 									{
-											if(MtrRelayOnOff == 1)
-											{
-													if(MeterData[u8PowerMeterID].RelayStatus == RELAY_ON)
-													{//	No Reader /Card mode need to set meter on contenuously, or meter will go off in 30 sec.
-															MtrRelayOnOff = 1 ;
-															MeterPollingState = MP_SET_RELAY ;
-
-															//	Push the Polling process to prevent infinite polling loop
-															PollingStateIndex++;
-													}
-													MeterData[u8PowerMeterID].RelayStatus = RELAY_ON;
-													
-											} 
-											/*else {
-													PwrMeterCmdList[PollingMeterID-1] = MBPMCMD_RELAY_ON;												
-											}*/
+											MeterData[u8PowerMeterID].RelayStatus = RELAY_ON;
 									} else {
-											if (MtrRelayOnOff == 1)
-											{
-													if(MeterData[u8PowerMeterID].RelayStatus == RELAY_ON)
-													{//	No Reader /Card mode need to set meter on contenuously, or meter will go off in 30 sec.
-															MtrRelayOnOff = 1 ;
-															MeterPollingState = MP_SET_RELAY ;
-													}
-											} else 
-													MeterData[u8PowerMeterID].RelayStatus = RELAY_OFF;
+											MeterData[u8PowerMeterID].RelayStatus = RELAY_OFF;
 									}
 						}
 				}

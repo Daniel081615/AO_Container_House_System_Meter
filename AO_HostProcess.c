@@ -64,9 +64,9 @@ void Host_InvDataProcess(void);
 
 uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len);
 
-extern uint8_t fgReaderSync;
-extern uint8_t ModeSyncError;
 uint8_t LastDataUpdated;
+
+void GetHostRTC(void);
 
 /*MeterOta*/
 void Host_OTAMenterProcess(void);
@@ -237,10 +237,7 @@ void Host_AliveProcess(void)
     uint8_t u8BuferIndex;
     uint8_t HostData_P,HostData_N;
     
-    for (i=0;i<7;i++)
-    {
-        iSystemTime[i] = TokenHost[INX_TIME_START_Y+i];
-    }
+		GetHostRTC();
     
     HostData_P = TokenHost[5];
     HostData_N =  TokenHost[6];
@@ -341,10 +338,7 @@ void Host_OTAMenterProcess(void)
 		SYS_UnlockReg();
 		FMC_Open();
 	
-    for (i=0;i<7;i++)
-    {
-        iSystemTime[i] = TokenHost[INX_TIME_START_Y+i];
-    }
+		GetHostRTC();
     HostPollingDeviceIdx = TokenHost[3];
 		
 		switch(TokenHost[3])
@@ -739,10 +733,15 @@ void SystemSwitchProcess(void)
 		
 	}
 	
-	
-	
 }
 
+void GetHostRTC(void)
+{
+		
+		for (uint8_t i = 0; i < 7; i++) {
+        iSystemTime[i] = TokenHost[INX_TIME_START_Y + i];
+    }
+}
 
 uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len)
 {

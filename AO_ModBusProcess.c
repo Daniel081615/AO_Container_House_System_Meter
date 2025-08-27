@@ -868,23 +868,43 @@ void CmdModBus_DEM_510c(uint8_t PwrMtrModbusCmd)
 			MeterTxBuffer[6]=0x02;          // Data 1
 			MeterTxBuffer[7]=PowerMeterNewBaudRate;    // 0x00: 1200, 0x01: 0x2400, 0x02: 0x4800, 0x03: 9600 Baud
  			MeterTxBuffer[8]=0x00;          // Data 3    
-		CRC16(MeterTxBuffer,6);
+			CRC16(MeterTxBuffer,6);
 			MeterTxBuffer[6]=uchCRCHi;      // // CRC Checksum 
 			MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
 			_SendStringToMETER(MeterTxBuffer,8);   
 			break;
-		case MDBS_METER_SET_PWD :
+		case MDBS_METER_SET_DO :
 			MeterMBCmd = MDBS_METER_OTHER ;
 			MeterTxBuffer[1]=0x05;          // Function 
 			MeterTxBuffer[2]=0x00;          // Data 0
-			MeterTxBuffer[3]=0x02;          // Data 1
-			MeterTxBuffer[4]=0x00;          // Data 2
+			MeterTxBuffer[3]=0x03;          // Data 1
+			if (PowerMeterDO_OnOff){
+					MeterTxBuffer[4]=0xFF;          // Data 2
+			} else {
+					MeterTxBuffer[4]=0x00;          // Data 2
+			}
 			MeterTxBuffer[5]=0x00;          // Data 3            
 			CRC16(MeterTxBuffer,6);
 			MeterTxBuffer[6]=uchCRCHi;      // // CRC Checksum 
 			MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
 			_SendStringToMETER(MeterTxBuffer,8);   
 			break;
+		case MDBS_METER_SET_DO_LOCK :
+			MeterMBCmd = MDBS_METER_OTHER ;
+			MeterTxBuffer[1]=0x05;          // Function 
+			MeterTxBuffer[2]=0x00;          // Data 0
+			MeterTxBuffer[3]=0x02;          // Data 1
+			if (PowerMeterDOLock){
+					MeterTxBuffer[4]=0xFF;          // Data 2
+			} else {
+					MeterTxBuffer[4]=0x00;          // Data 2
+			}
+			MeterTxBuffer[5]=0x00;          // Data 3            
+			CRC16(MeterTxBuffer,6);
+			MeterTxBuffer[6]=uchCRCHi;      // // CRC Checksum 
+			MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
+			_SendStringToMETER(MeterTxBuffer,8);   
+			break;		
 		default :
 			MeterMBCmd = MDBS_METER_OTHER ;
 			break;
@@ -957,7 +977,7 @@ int ScanAndSetMeter(int baudrate)
         PowerMeterNewAddr = 0x01;
         MODBUS_SendCmd(MDBS_METER_GET_RELAY);
 			
-				Delay_10ms(20);
+				Delay_10ms(30);
 			
         if (TokenMeterReady != 0x00)
         {

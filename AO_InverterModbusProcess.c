@@ -54,9 +54,8 @@ void INVPolling(void)
 						break;
 									
 				case	INV_POLLING_RSP:
-						//	Get Rsp logic & Timeout Warn
-						//	Change PowerMeterID to specific BMS ID
-						if (GotDeviceRsp == PollingBmsID)
+						//	If bufhead equal to 'E' or 'V', 
+						if ((GotDeviceRsp == 'E') || (GotDeviceRsp == 'V'))
             {
                 INVSuccess();
             } else {
@@ -72,6 +71,9 @@ void INVPolling(void)
 		}
 }
 
+/***	Unique Inverter Cmd 
+	 *	11 byte
+***/
 void MODBUS_SendINVCmd(void)
 {
 		MeterTxBuffer[0] = 0x43;
@@ -89,7 +91,7 @@ void MODBUS_SendINVCmd(void)
 }
 
 void INVDataProcess(void)
-{		//	'E' 'P' 'H' 'B', 'V' 'G' 'H' 'B',
+{		//	'E'+'P'+'H'+'B', 'V'+'G'+'H'+'B', 'V'+'P'+'H'+'B'
 		if (((TokenMeter[0] == 0x45) && (TokenMeter[1] == 0x50) && (TokenMeter[2] == 0x48) && (TokenMeter[3] == 0x42)) || 
 				((TokenMeter[0] == 0x56) && (TokenMeter[1] == 0x47) && (TokenMeter[2] == 0x48) && (TokenMeter[3] == 0x42)) ||
 				((TokenMeter[0] == 0x56) && (TokenMeter[1] == 0x50) && (TokenMeter[2] == 0x48) && (TokenMeter[3] == 0x42)))

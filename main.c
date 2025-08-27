@@ -112,7 +112,6 @@ uint8_t AckResult,MemberBase;
 uint8_t PacketIndex;
 uint8_t LastReaderRecord_RP;
 
-uint8_t fgReaderSync;
 uint8_t ToReader_MemberIndex;
 uint8_t HostGetRCDType,HostGetRCDIndex;
 uint8_t NewRecordCounter, Record_WP, Record_RP;
@@ -160,10 +159,10 @@ uint32_t NowMeterPower;
 uint32_t LastMeterPower[PwrMeterMax];
 uint16_t  TickReadPowerTime,ReadMeterTime,DelayTick;
 uint8_t PowerMeterID;
-uint8_t PowerMeterNewAddr, PowerMeterNewBaudRate, PowerMeterMode;
+uint8_t PowerMeterNewAddr, PowerMeterNewBaudRate, PowerMeterMode, PowerMeterDO_OnOff, PowerMeterDOLock;
 
 uint8_t NewUser,NowUser,LastUser;
-uint16_t	ConsumptionCounter;			// 電力計數 1600 = 1度 (1KW)
+uint16_t	ConsumptionCounter;
 uint8_t	Tick_20mSec,TickADC;
 uint8_t ReaderPollingState;
 uint8_t bSaveSettingToEE;
@@ -269,7 +268,7 @@ _Bool fgFirstStart;
 uint8_t Tick_LED_G,Tick_LED_G1,Tick_LED_R,Tick_LED_R1;
 
 uint8_t StepFineTuneUR2,UR2_FregOK;
-uint16_t Tick10mS_FTUR2,Tick5mS_CheckRoomMode,FreqMixValue;
+uint16_t Tick10mS_FTUR2,FreqMixValue;
 uint8_t RelayOffCnt;
 uint8_t tmpMemberMode[3];
 uint8_t RoomModeCheckCounter[PwrMeterMax];
@@ -331,7 +330,6 @@ void WDT_Init(void);
 void ROOM_POWER_On(void);
 void ROOM_POWER_Off(void);
 void LEDs_Process(void);
-void CheckRoomMode(void);
 
 void SystemPolling(void);
 void ModbusDataProcess(void);
@@ -389,7 +387,6 @@ void SysTick_Handler(void)
     DelayTick++;
     Tick_10mSec++;
     iTickDelaySendHostCMD++;
-    Tick5mS_CheckRoomMode++;
     
     ReaderWaitTick++;
     DelayTime4NextCmd++;
@@ -448,9 +445,13 @@ void SysTick_Handler(void)
 	
 }
 
-/*---------------------------------------------------------------------------------------------------------*/
-/*  UART0/UART2 Handler                                                                                       */
-/*---------------------------------------------------------------------------------------------------------*/
+
+/***
+ *	@func	UART0/UART2 Handler
+ *	@note Add inverter respond parser, 3 types of 4 byte Bufhead 'E'+'P'+'H'+'B', 'V'+'G'+'H'+'B', 'V'+'P'+'H'+'B'
+ ***/
+
+
 void UART02_IRQHandler(void)
 {
 
@@ -476,16 +477,25 @@ void UART02_IRQHandler(void)
 			if ( METERRxQ_wp >= MAX_METER_RXQ_LENGTH ) METERRxQ_wp=0; 
 
 			if ( METERRxQ[0] != PowerMeterID ) {
+					if( (((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) && 
+							((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
+							 (METERRxQ[2] == 'H') && (METERRxQ[3] == 'B')) ){
+							 break;
+					}
 				METERRxQ_wp=0;
 				METERRxQ_cnt=0; 
 				METERRxQ_rp=0;        
 				return;
-			}
+			} 
 			if ( METERRxQ[1] == 0x03 ) {
 					if ( METERRxQ_wp >= 2 )
 							METER_RXQLen = METERRxQ[2]+5 ;					
+			} else if(((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) && 
+								 ((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
+									(METERRxQ[2] == 'H') && (METERRxQ[3] == 'B')){
+					METER_RXQLen = METERRxQ[4] + 5;
 			} else {
-				METER_RXQLen = 8 ;
+					METER_RXQLen = 8 ;
 			}
 
 			if( METERRxQ_cnt >= METER_RXQLen )
@@ -1277,15 +1287,18 @@ SystemTick = 0 ;
 
 	ReadMeterTime = 40 ;	 	// Reading Power Meter per 40 x 20 mSec
 
-		/**	@Bms, @WtrMtr & @PwrMtr test function	**/
+		/**	@Bms, @WtrMtr & @PwrMtr test function	
+				Initialize & set device ID, BaudRate.
+		 **/
+		 
 		MeterDEM_510c_Init();
-		Bms_Init();
-		WtrMeter_Init();
+//		Bms_Init();
+//		WtrMeter_Init();
 
     do {
         //RoomData.RoomMode = RM_POWER_OFF_READY ;
 				WDT_RESET_COUNTER();
-        SystemTick = 0 ;					// Clear System S/W watchdog 		
+        SystemTick = 0 ;				// Clear System S/W watchdog 		
         ModbusDataProcess();
         SystemPolling();
         ReadMyMeterBoardID();					
@@ -1295,21 +1308,9 @@ SystemTick = 0 ;
         //SaveSetting2EE();							
         RecoverSystemMoniter();					
         CalErrorRate();
-        CheckRoomMode();
     } while (1); 
 }
 
-//	Check relay mode == relay now status
-void CheckRoomMode(void)
-{
-    uint8_t i;
-
-    if ( Tick5mS_CheckRoomMode < 50 ) return ;
-    Tick5mS_CheckRoomMode = 0 ;
-    
-
-    
-}
 
 void EnableHostUartTx(void)
 {
@@ -1672,10 +1673,7 @@ enum DefineDevicePolling{
  ***/
 void SystemPolling(void)
 {
-//		UART_Close(UART2);
-//		UART2_Init(115200);
-
-
+	
 		switch (SystemPollingState)
     {
 				case SYSTEM_POLLING_READY:
@@ -1686,17 +1684,21 @@ void SystemPolling(void)
 						} else {
 								SystemPollingStateIndex++;
 						}
-						//SystemPollingState = (SYSTEM_POLLING_METER + SystemPollingStateIndex -1);
-						
 						break;
 					
         case SYSTEM_POLLING_METER:
-				
+
+						//	When Meter Polling over, Go to BMS device polling state				
+						if ( PollingMeterID > MaxPowerMeter ){
+								PollingMeterID = 1 ;
+								MeterPollingFinishedFlag = TRUE;
+						}
+						
             if (!MeterPollingFinishedFlag) {
-//								SYS_ResetModule(UART2_RST);
-//								UART_Open(UART2, 2400);
+								//	go to meter polling process
 								MeterPolling();
             } else {
+								//	For BMS Baud rate is fixed at 115200 bps
 								UART2_Init(115200);
 								MeterPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
@@ -1704,10 +1706,18 @@ void SystemPolling(void)
             break;
 
         case SYSTEM_POLLING_BMS:
+						
+						//	When BMS Polling over, Go to water meter device polling state
+						if (PollingBmsID > MaxBmsDevices){
+								PollingBmsID = 1 ;
+								BmsPollingFinishedFlag = TRUE;
+						}					
+
             if (!BmsPollingFinishedFlag) {
-								
+								//	go to Bms polling process
 								BmsPolling();
             } else {
+								//	Switch baud rate back to 2400 bps
 								UART2_Init(2400);
 								BmsPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
@@ -1715,8 +1725,16 @@ void SystemPolling(void)
             break;
 
 				case SYSTEM_POLLING_WM:
-            
+            	
+						//	When water meter Polling over, Go to Inverter device polling state
+						if ( PollingWMID > WtrMeterMax )
+						{
+								PollingWMID = 1 ;
+								WMPollingFinishedFlag = TRUE;
+						}
+
             if (!WMPollingFinishedFlag) {
+								//	go to water meter polling process
 								WMPolling();
             } else {
 								WMPollingFinishedFlag = FALSE;
@@ -1779,17 +1797,23 @@ void ModbusDataProcess(void)
 										break;
 						}
 		
-        } else if((TokenMeter[METER_RXQLen-1]==uchCRCLo) && (SystemPollingState == SYSTEM_POLLING_INV)){
-							LED_G_TOGGLE();
-							GotDeviceRsp = TokenMeter[0] ;
-							INVDataProcess();
+        } else if (SystemPollingState == SYSTEM_POLLING_INV){
+						
+						CRC16(&TokenMeter[5], METER_RXQLen-1);
+						if (TokenMeter[METER_RXQLen-1]==uchCRCLo){
+							
+								LED_G_TOGGLE();
+								GotDeviceRsp = TokenMeter[0] ;
+								INVDataProcess();
+						}
+						
+
 				} else {
             GotDeviceRsp = TokenMeter[0] ;
             ResetMeterUART();	
         }
 			
 		}
-	
 }
 
 void InitDevicesSetUp(void)
@@ -1809,6 +1833,13 @@ void Delay_10ms(uint8_t ms)
 				SystemTick = 0 ;		
 				WDT_RESET_COUNTER();
 		} while( u32TimeTick2 < ms ); 
+}
+
+
+//	For in a period of time watering, or time triggered watering
+void WateringGPIO_OnOff(void)
+{
+		
 }
 
 
