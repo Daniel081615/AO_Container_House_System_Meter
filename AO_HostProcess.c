@@ -136,6 +136,7 @@ void HostProcess(void)
                 fgFromHostFlag = TokenHost[3];
                 fgFromHostRSPFlag = TokenHost[4];
                 fgToHostFlag &= fgFromHostRSPFlag;
+							
                 LED_R_TOGGLE();
                 fgToHostRSPFlag = 0xFF ;                
 								// Token ready
@@ -372,31 +373,60 @@ void Host_OTAMenterProcess(void)
 		}
 }
 
+/***
+ *	@brief		Send center devices status
+ *  @devices 	power meter, Bms, water meter, inverter *
+ ***/
+void SendHost_Ack(void)
+{
+    uint8_t fnPacketIndex;
 
+    HostTxBuffer[2] = METER_RSP_ACK ;	
+    HostTxBuffer[3] = fgToHostFlag; 
+    HostTxBuffer[4] = fgToHostRSPFlag; 
+    fnPacketIndex = 5 ; 
+
+		//	PowerMeter NG Status.
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  PowerMeterError & 0x000000FF ;
+		//	BMS NG Status.
+		HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  BmsError.BmsDeviceNG & 0x000000FF ;
+		//	WM NG Status.
+		HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  WMError.WMDeviceNG & 0x000000FF ;
+		//	INV NG Status.
+    HostTxBuffer[fnPacketIndex++] =  InvError.InvDeviceNG & 0x000000FF ;
+		
+    CalChecksumH();	
+	  
+}
+
+/***
+ *	@breif	Send center devices communication datail
+ ***/
 void SendHost_SystemInformation(void)
 {
-    uint8_t fnPacketIndex,u8MeterIDIndex;
+    uint8_t fnPacketIndex,u8PowerMeterIdx;
     
-    u8MeterIDIndex = MyMeterBoardID-1;
+    u8PowerMeterIdx = MyMeterBoardID-1;
     HostTxBuffer[2] = METER_RSP_SYS_INFO ;	
     HostTxBuffer[3] = fgToHostFlag; 	
     HostTxBuffer[4] = fgToHostRSPFlag; 
 
     fnPacketIndex = 5 ; 
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = PowerMeterError & 0x000000FF ;
+
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.PowerMeter;
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.Bms;
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.WaterMeter;
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.Inverter;
 	
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterTxCounter[u8MeterIDIndex] & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterTxCounter[u8MeterIDIndex] & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterTxCounter[u8MeterIDIndex] & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = PowerMeterTxCounter[u8MeterIDIndex] & 0x000000FF ;    
-	
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterRxCounter[u8MeterIDIndex] & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterRxCounter[u8MeterIDIndex] & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterRxCounter[u8MeterIDIndex] & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = PowerMeterRxCounter[u8MeterIDIndex] & 0x000000FF ;
     
     CalChecksumH();	
     
@@ -419,6 +449,8 @@ void SendHost_PowerData(void)
     HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x00FF0000) >> 16 ;
     HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x0000FF00) >> 8 ;
     HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].TotalWatt & 0x000000FF ;
+	
+		
 
     CalChecksumH();			
 }
@@ -436,7 +468,7 @@ void SendHost_BmsData(void)
     HostTxBuffer[4] = u8BmsID ; 	
     fnPacketIndex = 5;
 	
-		HostTxBuffer[fnPacketIndex++] = BmsError.ErrorRate;			// Communicate rate
+		HostTxBuffer[fnPacketIndex++] = BmsError.ErrorRate[u8BmsID];			// Communicate rate
 		HostTxBuffer[fnPacketIndex++] = BmsData[u8BmsID].BalanceStatus;	// Battery mode
 		HostTxBuffer[fnPacketIndex++] = BmsData[u8BmsID].StateOfCharge;
 		HostTxBuffer[fnPacketIndex++] = BmsData[u8BmsID].StateOfHealth;	//	SOH
@@ -493,7 +525,7 @@ void SendHost_WMData(void)
     HostTxBuffer[4] = u8WMID ; 	
     fnPacketIndex = 5;
 	
-		HostTxBuffer[fnPacketIndex++] = WMError.ErrorRate;			// Communicate rate
+		HostTxBuffer[fnPacketIndex++] = WMError.ErrorRate[u8WMID];			// Communicate rate
 		HostTxBuffer[fnPacketIndex++] = WMData[u8WMID].ValveState;			// 0xff : closed, 0x00 : opened
 	
 		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0xFF000000) >> 24 ;
@@ -555,57 +587,6 @@ void SendHost_InvData(void)
 		HostTxBuffer[fnPacketIndex++] = BatData.CurrentSensorFaultFlag;
 		
 		CalChecksumH();			
-}
-
-/************************************
-0: 0x55
-1: MyMeterBoardID
-2: Command
-3: fgToHostFlag
-4:  Result
-5 ~ 9 : Meter status ( 4 Bytes )
-10 ~ 14 : Meter status ( 4 Bytes )
-15 ~ 19 : Meter status ( 4 Bytes )
-20 ~ 24 : Meter status ( 4 Bytes )
-24 ~ 29 : Meter status ( 4 Bytes )
-Members Data's checksum (MEMBER MAX )
-49: Checksum
-50: 0x0A (\n)
-*/
-void SendHost_Ack(void)
-{
-    uint8_t fnPacketIndex;
-    //uint8_t *tmpAddr;
-
-    HostTxBuffer[2] = METER_RSP_ACK ;	
-    HostTxBuffer[3] = fgToHostFlag; 
-    HostTxBuffer[4] = fgToHostRSPFlag; 
-    fnPacketIndex = 5 ; 
-	
-		//	Got Devices status
-		//	PowerMeter NG Status.
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] =  PowerMeterError & 0x000000FF ;
-		//	BMS NG Status.
-		HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] =  BmsError.BmsDeviceNG & 0x000000FF ;
-		//	WM NG Status.
-		HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] =  WMError.WMDeviceNG & 0x000000FF ;
-		//	INV NG Status.
-		HostTxBuffer[fnPacketIndex++] = (InvError.InvDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (InvError.InvDeviceNG & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (InvError.InvDeviceNG & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] =  InvError.InvDeviceNG & 0x000000FF ;
-		
-    CalChecksumH();	
-	  
 }
 
 /* Send Fw info to Center

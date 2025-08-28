@@ -284,6 +284,7 @@ uint8_t SystemPollingState, SystemPollingStateIndex;
 
 uint32_t PowerMeterRxCounter[PwrMeterMax];
 uint32_t PowerMeterTxCounter[PwrMeterMax];
+TotErrorRate_t TotErrorRate;
 
 void DefaultValue(void);
 
@@ -1328,65 +1329,16 @@ void DisableHostUartTx(void)
 float fErrorRate,tmpTx,tmpRx;
 
 /***
- *	@brief	Calculate error rate.
+*	@brief	Calculate error rate.
+* power meter, Bms, water meter, inverter *
  ***/
-
 void CalErrorRate(void)
 {
-    uint8_t i,j;
+	  uint8_t i,j, acmTx, acmRx;
 	
-		//	Bms error rate calculation
-		for (uint8_t i = 0; i < PwrMeterMax; i++ )
-		{
-				if ((BmsError.Fail[i] + BmsError.Success[i]) > 0)
-				{
-						tmpTx = (float)BmsError.Fail[i] + BmsError.Success[i];
-						tmpRx = (float)BmsError.Success[i];
-						fErrorRate = tmpRx/tmpTx;
-						BmsError.ErrorRate = (uint8_t) (fErrorRate*100);
-				} else {
-						BmsError.ErrorRate = 0;
-				}
-		}
-		
-		//	WM error rate culculation
-		for (uint8_t i = 0; i < WtrMeterMax; i++ )
-		{
-				if ((WMError.Fail[i] + WMError.Success[i]) > 0)
-				{
-						tmpTx = (float)WMError.Fail[i] + WMError.Success[i];
-						tmpRx = (float)WMError.Success[i];
-						fErrorRate = tmpRx/tmpTx;
-						WMError.ErrorRate = (uint8_t) (fErrorRate*100);
-				} else {
-						WMError.ErrorRate = 0;
-				}
-		}
-		
-		//	Inv error rate calculation
-		if ((InvError.Fail + InvError.Success) > 0)
-		{
-				tmpTx = (float)InvError.Fail + InvError.Success;
-				tmpRx = (float)InvError.Success;
-				fErrorRate = tmpRx/tmpTx;
-				InvError.ErrorRate = (uint8_t) (fErrorRate*100);
-		} else {
-				InvError.ErrorRate = 0;
-		}		
-        
-    MeterErrorRate_Tx[0] = 0 ;
-    MeterErrorRate_Rx[0] = 0 ;
-    for ( j=0;j<12;j++)
-    {
-        MeterErrorRate_Tx[0] += MeterErrorRate5Min_Tx[0][j];
-        MeterErrorRate_Rx[0] += MeterErrorRate5Min_Rx[0][j];
-    }
+		//	power meter error rate calculation
     
-		tmpTx = (float) MeterErrorRate_Tx[0];
-    tmpRx = (float) MeterErrorRate_Rx[0];
-    fErrorRate = tmpRx/tmpTx;
-    MeterErrorRate[0] = (uint8_t) (fErrorRate*100);
-        
+		acmTx = 0; acmRx = 0;
     for (i=0;i<PwrMeterMax;i++)
     {
         MeterErrorRate_Tx[i] = 0 ;
@@ -1400,7 +1352,62 @@ void CalErrorRate(void)
         tmpRx = (float) MeterErrorRate_Rx[i];
         fErrorRate = tmpRx/tmpTx;
         MeterErrorRate[i] = (uint8_t) (fErrorRate*100);
-    }
+				acmTx += tmpTx;
+				acmRx += tmpRx;				
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.PowerMeter = (uint8_t) (fErrorRate*100);
+	
+		//	Bms error rate calculation
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < PwrMeterMax; i++ )
+		{		
+				if ((BmsError.Fail[i] + BmsError.Success[i]) > 0)
+				{
+						tmpTx = (float)(BmsError.Fail[i] + BmsError.Success[i]);
+						tmpRx = (float)BmsError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						BmsError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						BmsError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.Bms = (uint8_t) (fErrorRate*100);
+		
+		//	WM error rate culculation
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < WtrMeterMax; i++ )
+		{
+				
+				if ((WMError.Fail[i] + WMError.Success[i]) > 0)
+				{
+						tmpTx = (float)WMError.Fail[i] + WMError.Success[i];
+						tmpRx = (float)WMError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						WMError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						WMError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.WaterMeter = (uint8_t) (fErrorRate*100);
+		
+		//	Inv error rate calculation
+		if ((InvError.Fail + InvError.Success) > 0)
+		{
+				tmpTx = (float)InvError.Fail + InvError.Success;
+				tmpRx = (float)InvError.Success;
+				fErrorRate = tmpRx/tmpTx;
+				InvError.ErrorRate = (uint8_t) (fErrorRate*100);
+		} else {
+				InvError.ErrorRate = 0;
+		}
+		TotErrorRate.WaterMeter = (uint8_t) (fErrorRate*100);
 }
 
 // TIME_DCHECK_MODE * 20mSec

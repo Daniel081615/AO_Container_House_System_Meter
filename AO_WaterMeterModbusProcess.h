@@ -36,7 +36,7 @@ typedef struct{
 	uint32_t WMDeviceNG;
 	uint8_t Success[WtrMeterMax];
 	uint8_t Fail[WtrMeterMax];
-	uint8_t ErrorRate;
+	uint8_t ErrorRate[PwrMeterMax];
 }WMError_t;
 
 typedef struct {

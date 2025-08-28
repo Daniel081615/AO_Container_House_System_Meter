@@ -183,6 +183,8 @@ extern uint8_t BmsCmdList[BmsMax];
 extern uint8_t WtrMeterCmdList[WtrMeterMax];
 extern uint8_t InvCmdList[InvMax];
 
+extern TotErrorRate_t TotErrorRate;
+
 
 extern _Bool fgFirstStart;
 

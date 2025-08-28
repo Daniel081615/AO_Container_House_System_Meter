@@ -605,6 +605,13 @@ typedef struct STR_METER_DATA {
 uint32_t TotalWatt;	
 uint8_t RelayStatus;
 } STR_METER_D;
+
+typedef struct {
+	uint8_t PowerMeter;
+	uint8_t Bms;
+	uint8_t WaterMeter;
+	uint8_t Inverter;
+}TotErrorRate_t;
 #endif 
 
 

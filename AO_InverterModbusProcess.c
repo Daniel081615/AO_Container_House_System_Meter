@@ -36,6 +36,8 @@ uint8_t INVPollingStateIndex;
 uint8_t InvReadErrorCnt;
 _Bool 	INVPollingFinishedFlag;
 
+uint8_t PollingInvID;
+
 void INVPolling(void)
 {
 		switch(INVPollingState)
@@ -47,6 +49,7 @@ void INVPolling(void)
 						
 						if (INVPollingState > INV_POLLING_CMD)
 						{
+								PollingInvID = 1;
 								INVPollingFinishedFlag = TRUE;
 								INVPollingState = INV_POLLING_CMD;
 								INVPollingStateIndex = 0;
@@ -158,7 +161,7 @@ void INVTimeoutProcess(void)
 {
 		//	Error report system
 		InvError.Fail += 1;
-    //InvError.InvDeviceNG &= (~(0x00000001 << (PollingWMID -1)));
+    InvError.InvDeviceNG &= (~(0x01 << (PollingInvID -1)));
 	
     if ( TickPollingInterval > POLL_TIMEOUT )
     {
@@ -167,7 +170,7 @@ void INVTimeoutProcess(void)
         
 				if( InvReadErrorCnt > POLL_ERROR_TIMES )
         {
-						//InvError.InvDeviceNG |= (0x00000001 << (PollingWMID -1));
+						InvError.InvDeviceNG |= (0x01 << (PollingInvID -1));
             INVPollingStateIndex++;
             InvReadErrorCnt = 0 ;            
             ResetMeterUART();

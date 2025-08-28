@@ -31,7 +31,7 @@ uint8_t PollingStateIndex;
 uint8_t PollingMeterID;
 
 uint16_t Tick1S_ErrorRateGap;
-uint32_t    PowerMeterNG;
+uint32_t PowerMeterNG;
 
 uint8_t volatile PwrMeterCmdList[PwrMeterMax];
 uint8_t  MeterErrorRate5Min_Wp;

@@ -126,7 +126,7 @@ typedef struct {
 	uint32_t BmsDeviceNG;
 	uint8_t Success[PwrMeterMax];
 	uint8_t Fail[PwrMeterMax];
-	uint8_t ErrorRate;
+	uint8_t ErrorRate[PwrMeterMax];
 } BmsError_t;
 
 typedef struct {

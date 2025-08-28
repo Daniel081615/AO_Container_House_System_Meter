@@ -28,7 +28,7 @@ typedef enum {
 }INV_Polling_State_t;
 
 typedef struct {
-	uint32_t InvDeviceNG;
+	uint8_t InvDeviceNG;
 	uint8_t Success;
 	uint8_t Fail;
 	uint8_t ErrorRate;
