@@ -168,7 +168,7 @@ void INVTimeoutProcess(void)
         INVPollingState = INV_POLLING_READY;						
         InvReadErrorCnt++;
         
-				if( InvReadErrorCnt > POLL_ERROR_TIMES )
+				if( InvReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
 						InvError.InvDeviceNG |= (0x01 << (PollingInvID -1));
             INVPollingStateIndex++;

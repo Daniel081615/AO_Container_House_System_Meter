@@ -6,13 +6,9 @@
 
 extern void BmsPolling(void);
 extern void BmsDataProcess(void);
-//	DeviceRsp
 
 extern _Bool BmsPollingFinishedFlag;
 extern uint8_t PollingBmsID;
-
-#define POLL_TIMEOUT 			50
-#define POLL_ERROR_TIMES	5
 
 #define MODBUS_FLAG_HEAT_ENABLE             (1 << 0)    // BIT0: Heat enable
 #define MODBUS_FLAG_DISABLE_TEMP_SENSOR     (1 << 1)    // BIT1: Disable heat sensor
@@ -124,9 +120,9 @@ enum DefineModbusBMS_Cmds
 
 typedef struct {
 	uint32_t BmsDeviceNG;
-	uint8_t Success[PwrMeterMax];
-	uint8_t Fail[PwrMeterMax];
-	uint8_t ErrorRate[PwrMeterMax];
+	uint8_t Success[BmsMax];
+	uint8_t Fail[BmsMax];
+	uint8_t ErrorRate[BmsMax];
 } BmsError_t;
 
 typedef struct {
@@ -151,6 +147,6 @@ typedef struct {
 } BmsData_t;
 
 extern BmsError_t BmsError;
-extern BmsData_t 	BmsData[PwrMeterMax];
+extern BmsData_t 	BmsData[BmsMax];
 
 #endif	//	AO_BMSModbusProcess.h

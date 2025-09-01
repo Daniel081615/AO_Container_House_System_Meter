@@ -231,6 +231,9 @@ void ClearRespDelayTimer(void)
 	iTickDelaySendHostCMD = 0 ;	
 }
 
+/***
+ *	@note	Need to revise 
+ ***/
 
 void Host_AliveProcess(void)
 {
@@ -320,7 +323,6 @@ void Host_InvDataProcess(void)
 {
 		//	Maybe no need
     HostPollingDeviceIdx = TokenHost[3];
-		InvCmdList[HostPollingDeviceIdx-1] = TokenHost[4]; 
 }
 
 /* Get Cmd From Center
@@ -374,6 +376,7 @@ void Host_OTAMenterProcess(void)
 }
 
 /***
+ *	@Not use yet(Or even no need)
  *	@brief		Send center devices status
  *  @devices 	power meter, Bms, water meter, inverter *
  ***/
@@ -387,10 +390,10 @@ void SendHost_Ack(void)
     fnPacketIndex = 5 ; 
 
 		//	PowerMeter NG Status.
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0xFF000000) >> 24 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x00FF0000) >> 16 ;
-    HostTxBuffer[fnPacketIndex++] = (PowerMeterError & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] =  PowerMeterError & 0x000000FF ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  PowerMeterNG & 0x000000FF ;
 		//	BMS NG Status.
 		HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
     HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
@@ -409,7 +412,8 @@ void SendHost_Ack(void)
 }
 
 /***
- *	@breif	Send center devices communication datail
+ *	@breif	Send center, devices status & communication datail
+ *  @devices 	power meter, Bms, water meter, inverter *
  ***/
 void SendHost_SystemInformation(void)
 {
@@ -421,7 +425,26 @@ void SendHost_SystemInformation(void)
     HostTxBuffer[4] = fgToHostRSPFlag; 
 
     fnPacketIndex = 5 ; 
+	
+		//	PowerMeter NG Status.
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  PowerMeterNG & 0x000000FF ;
+		//	BMS NG Status.
+		HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  BmsError.BmsDeviceNG & 0x000000FF ;
+		//	WM NG Status.
+		HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  WMError.WMDeviceNG & 0x000000FF ;
+		//	INV NG Status.
+    HostTxBuffer[fnPacketIndex++] =  InvError.InvDeviceNG & 0x000000FF ;	
 
+		//	Device Error rate
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.PowerMeter;
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.Bms;
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.WaterMeter;
@@ -519,11 +542,13 @@ void SendHost_BmsData(void)
 void SendHost_WMData(void)
 {
     uint8_t fnPacketIndex,u8WMID;
-    u8WMID = HostPollingDeviceIdx-1;
+    
     HostTxBuffer[2] = METER_RSP_WM_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	
     HostTxBuffer[4] = u8WMID ; 	
     fnPacketIndex = 5;
+	
+		u8WMID = HostPollingDeviceIdx-1;
 	
 		HostTxBuffer[fnPacketIndex++] = WMError.ErrorRate[u8WMID];			// Communicate rate
 		HostTxBuffer[fnPacketIndex++] = WMData[u8WMID].ValveState;			// 0xff : closed, 0x00 : opened
@@ -631,96 +656,96 @@ void SendHost_MenterFWActivatedInfo(void)
 
 void CalChecksumH(void)
 {
-	uint8_t i;
-	uint8_t Checksum;
+		uint8_t i;
+		uint8_t Checksum;
 
-	HostTxBuffer[0] = 0x55 ;
-	HostTxBuffer[1] = MyMeterBoardID ;
-	Checksum = 0 ;
-	for (i=1;i<(MAX_HOST_TXQ_LENGTH-2);i++)
-	{
-		Checksum += HostTxBuffer[i];
-	}	
-	HostTxBuffer[MAX_HOST_TXQ_LENGTH-2] = Checksum ;
-	HostTxBuffer[MAX_HOST_TXQ_LENGTH-1] = '\n' ; 
-	EnableHostUartTx(); 
-	//DIR485_HOST_Out();
-	_SendStringToHOST(HostTxBuffer,MAX_HOST_TXQ_LENGTH);
+		HostTxBuffer[0] = 0x55 ;
+		HostTxBuffer[1] = MyMeterBoardID ;
+		Checksum = 0 ;
+		for (i=1;i<(MAX_HOST_TXQ_LENGTH-2);i++)
+		{
+
+			Checksum += HostTxBuffer[i];
+		}	
+		HostTxBuffer[MAX_HOST_TXQ_LENGTH-2] = Checksum ;
+		HostTxBuffer[MAX_HOST_TXQ_LENGTH-1] = '\n' ; 
+		EnableHostUartTx(); 
+		//DIR485_HOST_Out();
+		_SendStringToHOST(HostTxBuffer,MAX_HOST_TXQ_LENGTH);
 	
 }
 
 void SystemSwitchProcess(void)
 {
-	float floatTemp;
-	uint8_t * tmpAddr;
-	
-	// Reader SW
-	if ( TokenHost[3] == 0xA5 )
-	{		
+		float floatTemp;
+		uint8_t * tmpAddr;
 		
-		// Meter LED ON
-		if ( TokenHost[4] == 0x05 )
-		{
-			LED_G_On();
-		}
-		// Meter LED OFF
-		if ( TokenHost[4] == 0x50 )
-		{
-			LED_G_Off();
-		}
-		if ( TokenHost[4] == 0x06 )
-		{
-			//SSR_Off();
-		}
-		if ( TokenHost[4] == 0x60 )
-		{
-			//SSR_On();
-		}
-		if ( TokenHost[4] == 0x70 )
-		{
+		// Reader SW
+		if ( TokenHost[3] == 0xA5 )
+		{			
+				// Meter LED ON
+				if ( TokenHost[4] == 0x05 )
+				{
+					LED_G_On();
+				}
+				// Meter LED OFF
+				if ( TokenHost[4] == 0x50 )
+				{
+					LED_G_Off();
+				}
+				if ( TokenHost[4] == 0x06 )
+				{
+					//SSR_Off();
+				}
+				if ( TokenHost[4] == 0x60 )
+				{
+					//SSR_On();
+				}
+				if ( TokenHost[4] == 0x70 )
+				{
+					
+				}
+				if ( (TokenHost[4] == 0x85) && (TokenHost[5] == 0xBB) )
+
+				{
+					ReadMeterTime = TokenHost[6] ;
+				}
+				if ( (TokenHost[4] == 0x86) && (TokenHost[5] == 0xBB))
+
+				{
+					MeterType = TokenHost[6] ;
+				}
+				
+				if ( (TokenHost[4]  == 0x5B)  && (TokenHost[5]  == 0xCC) )
+				{			
+					ResetHostUART();
+					ResetReaderUART();		
+				}
+				
+				if ( (TokenHost[4]  == 0x5A)  && (TokenHost[5]  == 0xBB) )
+				{
+					NVIC_SystemReset(); 
+				}
+
+				if ( TokenHost[20] == 0xAA )
+				{		
+					tmpAddr = (uint8_t*) &floatTemp;
+					tmpAddr[0] = TokenHost[21];
+					tmpAddr[1] = TokenHost[22];
+					tmpAddr[2] = TokenHost[23];
+					tmpAddr[3] = TokenHost[24];
+					Min_LowBalance = floatTemp;
+				}
 			
 		}
-		if ( (TokenHost[4] == 0x85) && (TokenHost[5] == 0xBB) )
-
-		{
-			ReadMeterTime = TokenHost[6] ;
-		}
-		if ( (TokenHost[4] == 0x86) && (TokenHost[5] == 0xBB))
-
-		{
-			MeterType = TokenHost[6] ;
-		}
-		
-		if ( (TokenHost[4]  == 0x5B)  && (TokenHost[5]  == 0xCC) )
-		{			
-			ResetHostUART();
-			ResetReaderUART();		
-		}
-		
-		if ( (TokenHost[4]  == 0x5A)  && (TokenHost[5]  == 0xBB) )
-		{
-			NVIC_SystemReset(); 
-		}
-
-		if ( TokenHost[20] == 0xAA )
-		{		
-			tmpAddr = (uint8_t*) &floatTemp;
-			tmpAddr[0] = TokenHost[21];
-			tmpAddr[1] = TokenHost[22];
-			tmpAddr[2] = TokenHost[23];
-			tmpAddr[3] = TokenHost[24];
-			Min_LowBalance = floatTemp;
-		}
-		
-	}
 	
 }
 
+//	Get RTC from center
 void GetHostRTC(void)
 {
-		
-		for (uint8_t i = 0; i < 7; i++) {
-        iSystemTime[i] = TokenHost[INX_TIME_START_Y + i];
+		for (uint8_t i = 0; i < 8; i++) {
+        iSystemTime[i] = TokenHost[INX_TIME_START_YY_H + i];
     }
 }
 

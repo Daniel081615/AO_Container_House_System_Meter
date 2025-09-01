@@ -83,6 +83,5 @@ enum DefineMODBUS_STEP {
 };
 
 extern void MODBUS_SendCmd(uint8_t cmd);
-extern void CRC16(unsigned char *puchMsg,unsigned short usDataLen);
 
 #endif

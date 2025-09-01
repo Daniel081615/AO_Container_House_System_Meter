@@ -33,7 +33,6 @@ uint8_t PollingMeterID;
 uint16_t Tick1S_ErrorRateGap;
 uint32_t PowerMeterNG;
 
-uint8_t volatile PwrMeterCmdList[PwrMeterMax];
 uint8_t  MeterErrorRate5Min_Wp;
 uint16_t MeterErrorRate5Min_Tx[PwrMeterMax][12];
 uint16_t MeterErrorRate5Min_Rx[PwrMeterMax][12];
@@ -337,7 +336,7 @@ void MeterTimeoutProcess(void)
     {
         MeterPollingState = MP_READY;							
         PowerMeterReadErrorCnt++;
-        if( PowerMeterReadErrorCnt > POLL_ERROR_TIMES )
+        if( PowerMeterReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
             PowerMeterNG |=  (0x00000001 <<  (PollingMeterID-1) ) ;
             PollingStateIndex++;

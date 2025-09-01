@@ -21,6 +21,7 @@
 #include "AO_BMSModbusProcess.h"
 #include "AO_InverterModbusProcess.h"
 #include "AO_WaterMeterModbusProcess.h"
+#include	"AO_Pyranometer.h"
 
 #define PLLCTL_SETTING  CLK_PLLCTL_72MHz_HIRC
 #define PLL_CLOCK       72000000
@@ -45,7 +46,6 @@
 
 
 
-// 定義數位電錶，非數位電錶請註解掉
 #define DIGIT_METER	
 
 #define POWER_100W_COUNTER		160
@@ -66,6 +66,11 @@
 #define USER_CHECK_CODE_ADDR		0x00B0
 #define EE_ADDR_METER_VALUE		0x0080
 
+/*	Idx of devices 	*/
+uint8_t PwrMeterIDArray[10] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A};
+uint8_t BmsIdArray[10] = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A};
+uint8_t WtrMeterArray[10] = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A};
+/***		***/
 
 uint8_t MaxPowerMeter;
 STR_METER_D MeterData[PwrMeterMax];
@@ -80,7 +85,7 @@ char VersionString[] = VERSION ;
 uint8_t MyMeterBoardID;
 uint8_t iStatus;
 // System 
-uint8_t iSystemTime[7]={0,0,0,0,0,0,0};		// Year,Month,Day,Hour,Min,Sec,Week
+uint8_t iSystemTime[8]={0,0,0,0,0,0,0,0};		// Year,Month,Day,Hour,Min,Sec,Week
 uint8_t UID[4];
 uint8_t ReaderTxBuffer[READER_TOKEN_LENGTH];
 uint8_t HostTxBuffer[HOST_TOKEN_LENGTH];
@@ -118,15 +123,13 @@ uint8_t NewRecordCounter, Record_WP, Record_RP;
 uint8_t TagChargeRCD_NewCnt, TagChargeRCD_WP, TagChargeRCD_RP;
 uint8_t PowerRCD_NewCnt, PowerRCD_WP, PowerRCD_RP;
 
-uint8_t fgToReaderFlag;		// 傳送至Reader
-uint8_t fgToReaderRSPFlag;	// 回應 Reader 通訊旗標
-uint8_t fgToHostFlag;		// 傳送至Host
-uint8_t fgToHostRSPFlag;		// 回應 Host 通訊旗標
-uint8_t fgReaderFunction;	// polling副程式使用 (功能旗標 )
+uint8_t fgToReaderFlag;
+uint8_t fgToReaderRSPFlag;
+uint8_t fgToHostFlag;
+uint8_t fgToHostRSPFlag;
+uint8_t fgReaderFunction;
 uint8_t fgFromHostFlag;
 uint8_t fgFromReaderFlag;
-
-uint32_t PowerMeterError;
 
 uint8_t DoorRecordIndex;
 uint8_t MemberIndex;
@@ -141,16 +144,15 @@ uint8_t ReaderWaitTick,PollRetryReader;
 uint8_t PackageIndex1,GotReaderRSP,ReaderDeviceError;
 	
 volatile uint32_t   u32TimeTick2;
+volatile uint8_t Tick_10mSec,Time_Sec;
 uint16_t     SystemTick;
 //struct adc_module adc_instance;
 
-volatile uint8_t Tick_10mSec,Time_Sec;
+
 
 uint8_t 	READERTokenReady,HOSTTokenReady,MeterTokenReady;
 
 uint16_t NowPortStatus,LastPortStatus,HostPortStatus;
-
-uint8_t MeterError;
 
 uint8_t TickPollingInterval,MeterPollingState;
 
@@ -183,7 +185,7 @@ uint8_t TickHost,SaveStep;
   * 0x01  DAE DEM530
   * 0x02  Tatung E21/E31
 	* 0x03 	TUTANG_E21nE31			
-	* 0x04	@DEM_510c	
+	* 0x04	DEM_510c	
   ********************/
 uint8_t MeterType;
 uint8_t DelayTime4NextCmd;
@@ -274,13 +276,19 @@ uint8_t tmpMemberMode[3];
 uint8_t RoomModeCheckCounter[PwrMeterMax];
 
 //	Devices 
-uint8_t PwrMtrModbusCmd, BmsModbusCmd, WtrMtrModbusCmd, InvModbusCmd;
-uint8_t BmsCmdList[BmsMax];
-uint8_t WtrMeterCmdList[WtrMeterMax];
-uint8_t InvCmdList[InvMax];
+/*
+#define	DeviceMax								2
+#define	PwrMtrDevice_START_IDX	0
+#define	WtrMtrDevice_START_IDX	1
+*/
+//uint8_t Device[DeviceMax];
+
+volatile uint8_t PwrMeterCmdList[PwrMeterMax], BmsCmdList[BmsMax];
+volatile uint8_t WtrMeterCmdList[WtrMeterMax], PyrMeterCmdList[PyrMeterMax];
 
 //	SystemPolling
-uint8_t SystemPollingState, SystemPollingStateIndex;
+uint8_t volatile SystemPollingState;
+uint8_t	SystemPollingStateIndex;
 
 uint32_t PowerMeterRxCounter[PwrMeterMax];
 uint32_t PowerMeterTxCounter[PwrMeterMax];
@@ -449,74 +457,102 @@ void SysTick_Handler(void)
 
 /***
  *	@func	UART0/UART2 Handler
- *	@note Add inverter respond parser, 3 types of 4 byte Bufhead 'E'+'P'+'H'+'B', 'V'+'G'+'H'+'B', 'V'+'P'+'H'+'B'
+ *	@note Revices Buff form according to Devices category
  ***/
-
-
 void UART02_IRQHandler(void)
 {
 
-	uint32_t u32IntSts;
-	uint8_t Rxbuf,i;
+		uint32_t u32IntSts;
+		uint8_t Rxbuf,i;
 
-	u32IntSts = UART2->INTSTS;
-	if(u32IntSts & UART_INTSTS_RDAINT_Msk)
-	{
-
-		/* Get all the input characters */
-		while(UART_IS_RX_READY(UART2))
+		u32IntSts = UART2->INTSTS;
+		if(u32IntSts & UART_INTSTS_RDAINT_Msk)
 		{
-			/* Get the character from UART Buffer */
-			Rxbuf = UART_READ(UART2);
 
-			/* Rx completed */		
-			TickMeterUart = 0 ;
-
-			METERRxQ[METERRxQ_wp] = Rxbuf;                        
-			METERRxQ_wp++;                 			
-			METERRxQ_cnt++;
-			if ( METERRxQ_wp >= MAX_METER_RXQ_LENGTH ) METERRxQ_wp=0; 
-
-			if ( METERRxQ[0] != PowerMeterID ) {
-					if( (((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) && 
-							((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
-							 (METERRxQ[2] == 'H') && (METERRxQ[3] == 'B')) ){
-							 break;
-					}
-				METERRxQ_wp=0;
-				METERRxQ_cnt=0; 
-				METERRxQ_rp=0;        
-				return;
-			} 
-			if ( METERRxQ[1] == 0x03 ) {
-					if ( METERRxQ_wp >= 2 )
-							METER_RXQLen = METERRxQ[2]+5 ;					
-			} else if(((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) && 
-								 ((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
-									(METERRxQ[2] == 'H') && (METERRxQ[3] == 'B')){
-					METER_RXQLen = METERRxQ[4] + 5;
-			} else {
-					METER_RXQLen = 8 ;
-			}
-
-			if( METERRxQ_cnt >= METER_RXQLen )
-			{		
-				for(i=0;i<METER_RXQLen;i++)
+				/* Get all the input characters */
+				while(UART_IS_RX_READY(UART2))
 				{
-					TokenMeter[i]=METERRxQ[METERRxQ_rp];					
-					METERRxQ_cnt--;
-					METERRxQ_rp++;
-					if(METERRxQ_rp >= MAX_METER_RXQ_LENGTH) METERRxQ_rp = 0 ;
+						/* Get the character from UART Buffer */
+						Rxbuf = UART_READ(UART2);
+						
+						TickMeterUart = 0 ;
+
+						METERRxQ[METERRxQ_wp] = Rxbuf;                        
+						METERRxQ_wp++;                 			
+						METERRxQ_cnt++;
+						if ( METERRxQ_wp >= MAX_METER_RXQ_LENGTH ) METERRxQ_wp=0; 
+
+						//	Devices Rsp check
+						switch(SystemPollingState){
+							case SYSTEM_POLLING_METER:
+									if (METERRxQ[0] != PollingMeterID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}
+									break;
+							case SYSTEM_POLLING_BMS:
+									if (METERRxQ[0] != PollingBmsID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}
+									break;
+							case SYSTEM_POLLING_WM:
+									if (METERRxQ[0] != PollingWMID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}								
+									break;
+							case SYSTEM_POLLING_INV:
+									if(!((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) &&
+											((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
+											 (METERRxQ[2] == 'H') && 
+											 (METERRxQ[3] == 'B')) {
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;												 
+									}
+									break;
+							default:
+									break;
+						}
+						
+						//	data length
+						if ( (METERRxQ[1] == 0x03)) {
+								if (METERRxQ_wp > 2)
+								{		
+										METER_RXQLen = METERRxQ[2]+5;
+								}
+						} else if(SystemPollingState == SYSTEM_POLLING_INV){
+								METER_RXQLen = METERRxQ[4]+5;
+						} else { 
+								METER_RXQLen = 8;
+						}
+
+						if( METERRxQ_cnt >= METER_RXQLen )
+						{		
+								for(i=0;i<METER_RXQLen;i++)
+								{
+										TokenMeter[i]=METERRxQ[METERRxQ_rp];					
+										METERRxQ_cnt--;
+										METERRxQ_rp++;
+										if(METERRxQ_rp >= MAX_METER_RXQ_LENGTH) METERRxQ_rp = 0 ;
+								}
+								METERRxQ_wp=0;
+								METERRxQ_cnt=0; 
+								METERRxQ_rp=0;      
+								TokenMeterReady = 1 ;
+						}				
+
 				}
-				METERRxQ_wp=0;
-				METERRxQ_cnt=0; 
-				METERRxQ_rp=0;      
-				TokenMeterReady = 1 ;
-			}								
 
 		}
-
-	}
 	
 	//u32IntSts = UART2->INTSTS;
 	if(u32IntSts & UART_INTSTS_THREINT_Msk)
@@ -1238,9 +1274,6 @@ int main()
     fgToHostRSPFlag = 0xFF ;	        
     MeterActive = 0x01 ;
 	
-
-	
-    PowerMeterError = 0x7FFFFFFF;
 // Initial default 
 #if 0
 	SystemTick = 0 ;
@@ -1288,13 +1321,18 @@ SystemTick = 0 ;
 
 	ReadMeterTime = 40 ;	 	// Reading Power Meter per 40 x 20 mSec
 
-		/**	@Bms, @WtrMtr & @PwrMtr test function	
+
+		/***	@Bms, @WtrMtr & @PwrMtr test function	
 				Initialize & set device ID, BaudRate.
-		 **/
-		 
+		 ***/
+		PowerMeterNG 				 	= 0xFFFFFFFF;
+		BmsError.BmsDeviceNG 	= 0xFFFFFFFF;
+		WMError.WMDeviceNG 		= 0xFFFFFFFF;
+		InvError.InvDeviceNG 	= 0xFF;
+		
 		MeterDEM_510c_Init();
-//		Bms_Init();
-//		WtrMeter_Init();
+		Bms_Init();
+		WtrMeter_Init();
 
     do {
         //RoomData.RoomMode = RM_POWER_OFF_READY ;
@@ -1334,7 +1372,8 @@ float fErrorRate,tmpTx,tmpRx;
  ***/
 void CalErrorRate(void)
 {
-	  uint8_t i,j, acmTx, acmRx;
+	  uint8_t i,j;
+		float acmTx, acmRx;
 	
 		//	power meter error rate calculation
     
@@ -1352,8 +1391,8 @@ void CalErrorRate(void)
         tmpRx = (float) MeterErrorRate_Rx[i];
         fErrorRate = tmpRx/tmpTx;
         MeterErrorRate[i] = (uint8_t) (fErrorRate*100);
-				acmTx += tmpTx;
-				acmRx += tmpRx;				
+				acmTx += (float)tmpTx;
+				acmRx += (float)tmpRx;				
 		}
 		fErrorRate = acmRx/acmTx;
 		TotErrorRate.PowerMeter = (uint8_t) (fErrorRate*100);
@@ -1369,6 +1408,8 @@ void CalErrorRate(void)
 						fErrorRate = tmpRx/tmpTx;
 						BmsError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
 				} else {
+						tmpTx = 0;
+						tmpRx = 0;
 						BmsError.ErrorRate[i] = 0;
 				}
 				acmTx += tmpTx;
@@ -1389,6 +1430,8 @@ void CalErrorRate(void)
 						fErrorRate = tmpRx/tmpTx;
 						WMError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
 				} else {
+						tmpTx = 0;
+						tmpRx = 0;
 						WMError.ErrorRate[i] = 0;
 				}
 				acmTx += tmpTx;
@@ -1405,9 +1448,11 @@ void CalErrorRate(void)
 				fErrorRate = tmpRx/tmpTx;
 				InvError.ErrorRate = (uint8_t) (fErrorRate*100);
 		} else {
+				tmpTx = 0;
+				tmpRx = 0;
 				InvError.ErrorRate = 0;
 		}
-		TotErrorRate.WaterMeter = (uint8_t) (fErrorRate*100);
+		TotErrorRate.Inverter = (uint8_t) (fErrorRate*100);
 }
 
 // TIME_DCHECK_MODE * 20mSec
@@ -1663,20 +1708,11 @@ void ROOM_POWER_Off(void)
 */		
 }
 
-
-
-enum DefineDevicePolling{
-	SYSTEM_POLLING_READY,
-	SYSTEM_POLLING_METER,
-	SYSTEM_POLLING_BMS,
-	SYSTEM_POLLING_WM,
-	SYSTEM_POLLING_INV,
-};
-
 /***
  * @brief Polls various system devices sequentially.
  * @note The current synchronous polling approach leads to a long execution period.
  * Consider asynchronous or event-driven methods for performance optimization.
+ * @note	Need to poll each devices according to their device "Idx", not type
  ***/
 void SystemPolling(void)
 {
@@ -1749,6 +1785,23 @@ void SystemPolling(void)
 						}
             break;
 						
+				case SYSTEM_POLLING_PYR:
+					
+						if ( PollingPyrID > PyrMeterMax )
+						{
+								PollingPyrID = 1 ;
+								PyrPollingFinishedFlag = TRUE;
+						}
+
+            if (!PyrPollingFinishedFlag) {
+								//	go to water meter polling process
+								PyranometerPolling();
+            } else {
+								PyrPollingFinishedFlag = FALSE;
+								SystemPollingState = SYSTEM_POLLING_READY;
+						}
+            break;						
+						
 				case SYSTEM_POLLING_INV:
 					
             if (!INVPollingFinishedFlag) {
@@ -1799,6 +1852,10 @@ void ModbusDataProcess(void)
 								case SYSTEM_POLLING_WM:
 										WMDataProcess();
 										break;
+								
+								case SYSTEM_POLLING_PYR:
+										PyrDataProcess();
+										break;								
 										
 								default:
 										break;

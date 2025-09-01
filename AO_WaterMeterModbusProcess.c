@@ -46,13 +46,12 @@ void WMTimeoutProcess(void);
 void CheckWMState(void);
 
 void WtrMeter_Init(void);
-_Bool ScannSetWTRMeterAddr(int baudrate);
 
 /*** 	Water Meter Variables	***/
 WMError_t WMError;
 WMData_t WMData[WtrMeterMax];
 uint8_t PollingWMID, WMSetDeviceID;
-uint8_t WMPollingState, WMPollingStateIndex;
+uint8_t WMPollingState, WMPollingStateIndex, WtrMtrModbusCmd;
 uint8_t WMMBCMD;
 uint8_t VlaveOnOff;
 uint8_t	WMBaudRate = 0x03;		// 0x01: 9600bps, 0x02: 4800bps, 0x03: 2400bps, 0x04: 1200bps
@@ -95,12 +94,12 @@ void WMPolling(void)
                     case	MBWMCMD_VALVE_OPEN :
                         VlaveOnOff = 1 ;
                         WMPollingState = MBCMD_SET_WM_VALVE_OnOff ;
-                        PwrMtrModbusCmd = MBWMCMD_READY;
+                        WtrMtrModbusCmd = MBWMCMD_READY;
                         break;
                     case	MBWMCMD_VALVE_CLOSE :										
                         VlaveOnOff = 0 ;
                         WMPollingState = MBCMD_SET_WM_VALVE_OnOff ;
-                        PwrMtrModbusCmd = MBWMCMD_READY;
+                        WtrMtrModbusCmd = MBWMCMD_READY;
                         break;
                     default :
                         break;
@@ -158,28 +157,26 @@ void WMDataProcess(void)
 		{
 				case MDBS_GET_VALVE_STATUS:
 						u8tempStatus = TokenMeter[5];	// 0xff Open, 0x00 Close
-						if (WMData[GotDeviceRsp].ValveState != u8tempStatus)
-						{
-							 if (u8tempStatus == 0xff){
-										VlaveOnOff = 0x01;
-							 } else if (u8tempStatus == 0x00){
-										VlaveOnOff = 0x00;
-							 }
-								WMPollingState = MBCMD_SET_WM_VALVE_OnOff;//	Set Valve to temp status.
-								WMData[GotDeviceRsp].ValveState = u8tempStatus;
+						
+						if (u8tempStatus == 0xff){
+								VlaveOnOff = 0x01;
+						} else if (u8tempStatus == 0x00){
+								VlaveOnOff = 0x00;
 						}
+						WMData[GotDeviceRsp].ValveState = VlaveOnOff;
 						break;
 						
 				case MDBS_GET_TOTAL_WATER_CONSUMPTION:
 						u32tempStatus = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 8) + (TokenMeter[6]);
+						WMData[GotDeviceRsp].TotalVolume = u32tempStatus;
 						//	If total water consumption lower than before, then check three times
-						if (u32tempStatus < WMData[GotDeviceRsp].TotalVolume)
-						{
-								tries++;
-								if (tries > 3)
-										WMData[GotDeviceRsp].TotalVolume = u32tempStatus;
-						} else 
-								WMData[GotDeviceRsp].TotalVolume = u32tempStatus;
+//						if (u32tempStatus < WMData[GotDeviceRsp].TotalVolume)
+//						{
+//								tries++;
+//								if (tries > 3)
+//										WMData[GotDeviceRsp].TotalVolume = u32tempStatus;
+//						} else 
+//								WMData[GotDeviceRsp].TotalVolume = u32tempStatus;
 						break;
 						
 				default:
@@ -280,7 +277,7 @@ void WMSuccess(void)
 void WMTimeoutProcess(void)
 {
 		uint8_t WMArrayIndex;
-		WMArrayIndex = GotDeviceRsp -1;	
+		WMArrayIndex = PollingWMID -1;	
 	
     if ( TickPollingInterval > POLL_TIMEOUT )
     {							
@@ -288,7 +285,7 @@ void WMTimeoutProcess(void)
 				//	Error report system    
 				WMError.Fail[WMArrayIndex] += 1;
 				WMPollingState = WM_POLLING_READY;
-        if( WMReadErrorCnt > POLL_ERROR_TIMES )
+        if( WMReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
 						WMError.WMDeviceNG |= (0x00000001 << (PollingWMID -1));
             WMPollingStateIndex++;
@@ -305,37 +302,30 @@ void WtrMeter_Init(void)
 		
     for (int i = 0; i < numBaudrates; i++)
     {
-        if (ScannSetWTRMeterAddr(baudrates[i]))
+				UART2_Init(baudrates[i]);
+				Delay_10ms(60);
+			
+				for (uint8_t i = 1; i < 0x10; i++)
 				{
-						//	Success flag
-				} else {
-						//	Fail flag
+						PollingWMID = i;
+						MODBUS_SendWMCmd(MDBS_GET_TOTAL_WATER_CONSUMPTION);
+					
+						Delay_10ms(30);
+					
+						if (TokenMeterReady != 0x00)
+						{
+								TokenMeterReady = 0x00;
+								WMError.WMDeviceNG &= (~(0x00000001 << (PollingWMID -1)));			
+							
+								//	Set baudrate
+								WMSetDeviceID = PollingWMID;
+								WMBaudRate= 0x03;			// 2400 baud
+								MODBUS_SendWMCmd(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
+								Delay_10ms(30);
+							
+								TokenMeterReady = 0x00;
+						}
 				}
     }
 		
-}
-
-
-_Bool ScannSetWTRMeterAddr(int baudrate)
-{
-    UART2_Init(baudrate);
-	
-    for (uint8_t i = 1; i < 247; i++)
-    {
-        PollingWMID = i;
-				WMSetDeviceID = 0x01;
-				WMBaudRate= 0x03;			// 2400 baud
-        MODBUS_SendWMCmd(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
-			
-				Delay_10ms(20);
-			
-        if (TokenMeterReady != 0x00)
-        {
-            PollingMeterID = 1;
-						TokenMeterReady = 0x00;
-            return 1;
-        }
-    }
-
-    return 0;
 }

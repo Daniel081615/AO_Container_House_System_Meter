@@ -69,6 +69,9 @@ extern uint16_t Tick1S_ErrorRateGap;
 extern uint8_t PayMode;
 extern uint8_t RoomMode[PwrMeterMax];
 
+extern uint8_t PwrMeterIDArray[10];
+extern uint8_t BmsIdArray[10];
+
 extern uint8_t MeterErrorRate[PwrMeterMax];
 extern uint16_t MeterErrorRate_Tx[PwrMeterMax];
 extern uint16_t MeterErrorRate_Rx[PwrMeterMax];
@@ -79,7 +82,6 @@ extern uint16_t MeterErrorRate5Min_Rx[PwrMeterMax][12];
 extern uint8_t ReaderPollingState,ReaderWaitTick,PollRetryReader;
 extern uint8_t PackageIndex1,GotReaderRSP,ReaderDeviceError;
 extern uint8_t RecordWp,RecordRp,RecordCounter,TickRecord;
-extern uint32_t    PowerMeterError;
 extern uint8_t MeterActive;
 
 //extern STR_UserInfo Members[MEMBER_MAX_NO];
@@ -118,7 +120,7 @@ extern uint8_t bSendReaderCommand,ReaderCommandType;
 extern uint8_t LastReaderRecord_RP;
 
 extern uint8_t TickHostUart, TickMeterUart;
-extern uint8_t 	iSystemTime[7];
+extern uint8_t 	iSystemTime[8];
 extern uint8_t TokenReader[READER_TOKEN_LENGTH];
 extern _Bool bResetUARTQ,TokenMeterReady;
 extern uint8_t TickHost,SaveStep;
@@ -144,7 +146,6 @@ extern uint8_t AutoLockTime;
 extern uint8_t MeterMBCmd,MeterRelayStatus;
 extern _Bool fgSwPower,PowerOnReadMeter,PowerOnTimeSync;
 extern uint8_t MeterPollingState,MeterError,TickPollingInterval;
-extern uint8_t PwrMtrModbusCmd, BmsModbusCmd, WtrMtrModbusCmd, InvModbusCmd;
 extern uint16_t  TickReadPowerTime,ReadMeterTime;
 
 extern uint8_t  DelayTime4NextCmd,MtrRelayOnOff,CenterRoomMode;
@@ -178,10 +179,8 @@ extern uint8_t METERRxQ_wp,METERRxQ_rp,METERRxQ_cnt;
 
 
 extern uint8_t GotDeviceRsp;
-extern volatile uint8_t PwrMeterCmdList[PwrMeterMax];
-extern uint8_t BmsCmdList[BmsMax];
-extern uint8_t WtrMeterCmdList[WtrMeterMax];
-extern uint8_t InvCmdList[InvMax];
+extern volatile uint8_t PwrMeterCmdList[PwrMeterMax], BmsCmdList[BmsMax];
+extern volatile uint8_t WtrMeterCmdList[WtrMeterMax], PyrMeterCmdList[PyrMeterMax];
 
 extern TotErrorRate_t TotErrorRate;
 
@@ -197,6 +196,7 @@ extern void CmdModbus_WM(uint8_t ModbusCmd);
 extern void CmdModBus_DEM5x0(uint8_t ModBusCmd);
 extern uint16_t ModeFlags, CellCount;
 extern uint8_t WMBaudRate, WMSetDeviceID;
+extern uint32_t    PowerMeterNG;
 
 extern void UART2_Init(uint32_t u32baudrate);
 extern void MeterDEM_510c_Init(void);
@@ -206,7 +206,9 @@ extern void Delay_10ms(uint8_t ms);
 
 extern uint16_t SystemTick;
 extern volatile uint32_t u32TimeTick2;
-extern int ScanAndSetMeter(int baudrate);
+extern volatile uint8_t SystemPollingState;
+
+extern void CRC16(unsigned char *puchMsg,unsigned short usDataLen);
 
 //extern _Bool fgUartReaderBusy;
 #ifdef METER_TEST

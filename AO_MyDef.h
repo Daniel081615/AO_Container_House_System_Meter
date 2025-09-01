@@ -35,6 +35,7 @@
 #define BmsMax			1
 #define WtrMeterMax 1
 #define InvMax			1
+#define	PyrMeterMax 1
 
 //#define METER_TEST
 
@@ -202,11 +203,8 @@
 
 #define METER_POLL_INTERVAL	50
 
-#define RS485_TIMEOUT_TIME		25
-#define WAIT_TIMEOUT_TIME			10
-#define POLL_TIMEOUT_TIME			25
-#define MAX_RETRY_TIMES			5
-#define POLL_DELAY_TIME				2
+#define POLL_TIMEOUT 					50
+#define MAX_POLL_RETRY_TIMES	5
 
 #define MAX_METER_TXQ_LENGTH    	25
 #define MAX_METER_RXQ_LENGTH    	16
@@ -385,14 +383,17 @@ enum DEFINE_POWER_METER_STATE {
 #define RM_ERROR					6
 
 // Time Index
-#define INX_YEAR		0
-#define INX_MON			1
-#define INX_DAY			2
-#define INX_HOUR		3
-#define INX_MIN			4
-#define INX_SEC			5
-#define INX_WEEK		6
-#define INX_TIME_START_Y	(READER_TOKEN_LENGTH-9)
+#define INX_YEAR_H		0
+#define INX_YEAR_L		1
+#define INX_MON			2
+#define INX_DAY			3
+#define INX_HOUR		4
+#define INX_MIN			5
+#define INX_SEC			6
+#define INX_WEEK		7
+
+#define INX_TIME_START_YY_H	(READER_TOKEN_LENGTH-10)
+#define INX_TIME_START_YY_L	(READER_TOKEN_LENGTH-9)
 #define INX_TIME_START_M	(READER_TOKEN_LENGTH-8)
 #define INX_TIME_START_D	(READER_TOKEN_LENGTH-7)
 #define INX_TIME_START_H	(READER_TOKEN_LENGTH-6)
@@ -516,6 +517,16 @@ STM_DELAY_SEND_OFF,
 STM_REGISTER,
 STM_DELAY_SEND_FAILURE,
         
+};
+
+enum DefineDevicePolling{
+	SYSTEM_POLLING_READY,
+	SYSTEM_POLLING_METER,
+	SYSTEM_POLLING_BMS,
+	SYSTEM_POLLING_WM,
+	SYSTEM_POLLING_PYR,	
+	SYSTEM_POLLING_INV,
+
 };
 
 #define RS_NORM			0x00

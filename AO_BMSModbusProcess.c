@@ -42,13 +42,12 @@ void BmsTimeoutProcess(void);
 void CheckBmsState(void);
 
 void Bms_Init(void);
-_Bool ScannSetBmsAddr(void);
 
 /***	Variables	***/
-BmsData_t  BmsData[PwrMeterMax];
+BmsData_t  BmsData[BmsMax];
 BmsError_t BmsError;
 
-uint8_t PollingBmsID, MaxBmsDevices, BmsNewAddr;
+uint8_t PollingBmsID, MaxBmsDevices, BmsNewAddr, BmsModbusCmd;
 uint8_t ChargeOnOff, DischargeOnOff, BatteryBalanceOnOff, BmsPollingState;
 uint8_t GotDeviceRsp;
 uint8_t BmsPollingStateIndex;
@@ -64,8 +63,6 @@ _Bool BmsPollingFinishedFlag;
 /***
  *	@function		BmsPolling()
  *	@brief			Poll BMS(Battery Management System) in sequence.
- *	@TODO				1.TimeOut Process
-								2.Use BmsPolling to send Cmds to BMS Device
 
  *	Cell Voltage
  *	Battery Voltage
@@ -99,59 +96,59 @@ void BmsPolling(void)
 										BmsPollingStateIndex = 0;
 								}
 						} else {
-										//	
-										BmsModbusCmd = BmsCmdList[PollingMeterID-1] ;
-										BmsCmdList[PollingMeterID-1] = MBBMSCMD_READY;
-									
-										switch ( PwrMtrModbusCmd )	
-										{
-												case MBBMSCMD_READY :
-														break;
-												case MBBMSCMD_CHARGE_ON :
-														ChargeOnOff = 1 ;
-														BmsPollingState = BMS_SET_CHARGE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_CHARGE_OFF :
-														ChargeOnOff = 0 ;
-														BmsPollingState = BMS_SET_CHARGE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;												
-												case MBBMSCMD_DISCHARGE_ON :										
-														DischargeOnOff = 1 ;
-														BmsPollingState = BMS_SET_DISCHARGE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_DISCHARGE_OFF :
-														DischargeOnOff = 0 ;
-														BmsPollingState = BMS_SET_DISCHARGE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_BALANCE_ON :										
-														BatteryBalanceOnOff = 1 ;
-														BmsPollingState = BMS_SET_BALANCE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_BALANCE_OFF :										
-														BatteryBalanceOnOff = 0 ;
-														BmsPollingState = BMS_SET_BALANCE_MODE ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_MODE_SETUP:
-														BmsPollingState = BMS_SET_FUNC_MODES ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_SET_ADDR:
-														BmsPollingState = BMS_SET_ADDR ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												case MBBMSCMD_SET_CELLCOUNT:
-														BmsPollingState = BMS_SET_CELLCOUNT ;
-														PwrMtrModbusCmd = MBPMCMD_READY;
-														break;
-												
-												default :
-														break;
+								//	
+								BmsModbusCmd = BmsCmdList[PollingMeterID-1] ;
+								BmsCmdList[PollingMeterID-1] = MBBMSCMD_READY;
+							
+								switch ( BmsModbusCmd )	
+								{
+										case MBBMSCMD_READY :
+												break;
+										case MBBMSCMD_CHARGE_ON :
+												ChargeOnOff = 1 ;
+												BmsPollingState = BMS_SET_CHARGE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_CHARGE_OFF :
+												ChargeOnOff = 0 ;
+												BmsPollingState = BMS_SET_CHARGE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;												
+										case MBBMSCMD_DISCHARGE_ON :										
+												DischargeOnOff = 1 ;
+												BmsPollingState = BMS_SET_DISCHARGE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_DISCHARGE_OFF :
+												DischargeOnOff = 0 ;
+												BmsPollingState = BMS_SET_DISCHARGE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_BALANCE_ON :										
+												BatteryBalanceOnOff = 1 ;
+												BmsPollingState = BMS_SET_BALANCE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_BALANCE_OFF :										
+												BatteryBalanceOnOff = 0 ;
+												BmsPollingState = BMS_SET_BALANCE_MODE ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_MODE_SETUP:
+												BmsPollingState = BMS_SET_FUNC_MODES ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_SET_ADDR:
+												BmsPollingState = BMS_SET_ADDR ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										case MBBMSCMD_SET_CELLCOUNT:
+												BmsPollingState = BMS_SET_CELLCOUNT ;
+												BmsModbusCmd = MBPMCMD_READY;
+												break;
+										
+										default :
+												break;
 										}
             }
 
@@ -783,7 +780,7 @@ void BmsSucccess(void)
 void BmsTimeoutProcess(void)
 {
 		uint8_t BmsArrayIndex;
-		BmsArrayIndex = GotDeviceRsp -1;
+		BmsArrayIndex = PollingBmsID -1;
 		//	Error report system
 		BmsError.Fail[BmsArrayIndex] += 1;
     
@@ -792,7 +789,7 @@ void BmsTimeoutProcess(void)
         BmsPollingState = BMS_POLLING_READY;							
         BmsReadErrorCnt++;
         
-				if( BmsReadErrorCnt > POLL_ERROR_TIMES )
+				if( BmsReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
 						BmsError.BmsDeviceNG |= (0x00000001 << (PollingBmsID -1));
             BmsPollingStateIndex++;
@@ -803,46 +800,37 @@ void BmsTimeoutProcess(void)
 }
 
 /***
- *	@brief	Setup Bms attributes, baudrate, device address, Mode(disable card mode, enable pc mode)
+ *	@brief	Setup Bms attributes
  ***/
 void Bms_Init(void)
 {
-		//	Set Bms Addr
-		if(ScannSetBmsAddr()==1)
-		{
-				//	Set Bms mode to RS485 & Timed stored data 
-				ModeFlags |= MODBUS_FLAG_PORT_SWITCH;
-				ModeFlags |= MODBUS_FLAG_TIMED_STORED_DATA;
-				MODBUS_SendBMSCmd(MDBS_SET_MODES);
-				
-				Delay_10ms(20);
-				//	Set cell number 16 a set
-				MODBUS_SendBMSCmd(MDBS_SET_CELLCOUNT);
-		}
-}
-
-_Bool ScannSetBmsAddr(void)
-{
+		SystemPollingState = SYSTEM_POLLING_BMS;
+	
 		UART2_Init(115200);
 		Delay_10ms(60);
 	
-		for (uint8_t i =1; i < 247; i++)
+		for (uint8_t i =1; i < 0x10; i++)
 		{
 				PollingBmsID = i;
-				BmsNewAddr = 0x01;
-				MODBUS_SendBMSCmd(MDBS_SET_BMS_DEVICE_ADDR);
-				
-				Delay_10ms(20);
+				MODBUS_SendBMSCmd(MDBS_GET_CELL_V);
+				Delay_10ms(30);
 				
 				if (TokenMeterReady != 0x00)
 				{
-						PollingBmsID = 1;
 						TokenMeterReady = 0x00;
-						return 1;
+						BmsError.BmsDeviceNG &= (~(0x00000001 << (PollingBmsID -1)));
+						//	Set Bms mode to RS485 & Timed stored data 
+						ModeFlags |= MODBUS_FLAG_PORT_SWITCH;
+						ModeFlags |= MODBUS_FLAG_TIMED_STORED_DATA;
+						MODBUS_SendBMSCmd(MDBS_SET_MODES);
+						Delay_10ms(20);
+					
+						//	Set cell number 16 a set
+						MODBUS_SendBMSCmd(MDBS_SET_CELLCOUNT);
+						TokenMeterReady = 0x00;					
 				}	
 			
 		}
-		return 0;
 }
 
 
