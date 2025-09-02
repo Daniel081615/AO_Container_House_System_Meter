@@ -21,7 +21,9 @@
 #include "AO_BMSModbusProcess.h"
 #include "AO_InverterModbusProcess.h"
 #include "AO_WaterMeterModbusProcess.h"
-#include	"AO_Pyranometer.h"
+#include "AO_Pyranometer.h"
+#include "AO_SoilSensor.h"
+#include "AO_AirSensor.h"
 
 #define PLLCTL_SETTING  CLK_PLLCTL_72MHz_HIRC
 #define PLL_CLOCK       72000000
@@ -73,12 +75,12 @@ uint8_t WtrMeterArray[10] = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2
 /***		***/
 
 uint8_t MaxPowerMeter;
-STR_METER_D MeterData[PwrMeterMax];
-uint8_t RoomMode[PwrMeterMax];
+STR_METER_D MeterData[PwrMtrMax];
+uint8_t RoomMode[PwrMtrMax];
 
-uint8_t MeterErrorRate[PwrMeterMax];
-uint16_t MeterErrorRate_Tx[PwrMeterMax];
-uint16_t MeterErrorRate_Rx[PwrMeterMax];
+uint8_t MeterErrorRate[PwrMtrMax];
+uint16_t MeterErrorRate_Tx[PwrMtrMax];
+uint16_t MeterErrorRate_Rx[PwrMtrMax];
 
 // Unit Cost = NTD. 0.5 ( Set 10 => NTD. 1 )
 char VersionString[] = VERSION ;
@@ -158,7 +160,7 @@ uint8_t TickPollingInterval,MeterPollingState;
 
 uint32_t 	TotalWattValue_Now;
 uint32_t NowMeterPower;
-uint32_t LastMeterPower[PwrMeterMax];
+uint32_t LastMeterPower[PwrMtrMax];
 uint16_t  TickReadPowerTime,ReadMeterTime,DelayTick;
 uint8_t PowerMeterID;
 uint8_t PowerMeterNewAddr, PowerMeterNewBaudRate, PowerMeterMode, PowerMeterDO_OnOff, PowerMeterDOLock;
@@ -195,7 +197,6 @@ uint8_t SwPowerDoubeCheck;
 uint8_t TickModeNRelayCheck;
 uint8_t BalanceCheckTimes;
 
-uint8_t RoomSetting;
 uint8_t AutoLockTime;
 uint8_t RoomModeCounter;
 uint8_t tmpMemberMode[3];
@@ -273,7 +274,7 @@ uint8_t StepFineTuneUR2,UR2_FregOK;
 uint16_t Tick10mS_FTUR2,FreqMixValue;
 uint8_t RelayOffCnt;
 uint8_t tmpMemberMode[3];
-uint8_t RoomModeCheckCounter[PwrMeterMax];
+uint8_t RoomModeCheckCounter[PwrMtrMax];
 
 //	Devices 
 /*
@@ -283,15 +284,16 @@ uint8_t RoomModeCheckCounter[PwrMeterMax];
 */
 //uint8_t Device[DeviceMax];
 
-volatile uint8_t PwrMeterCmdList[PwrMeterMax], BmsCmdList[BmsMax];
-volatile uint8_t WtrMeterCmdList[WtrMeterMax], PyrMeterCmdList[PyrMeterMax];
+volatile uint8_t PwrMtrCmdList[PwrMtrMax], BmsCmdList[BmsMax];
+volatile uint8_t WtrMtrCmdList[WtrMtrMax], PyrMtrCmdList[PyrMtrMax];
+volatile uint8_t SoilSensorCmdList[SoilSensorMax];
 
 //	SystemPolling
 uint8_t volatile SystemPollingState;
 uint8_t	SystemPollingStateIndex;
 
-uint32_t PowerMeterRxCounter[PwrMeterMax];
-uint32_t PowerMeterTxCounter[PwrMeterMax];
+uint32_t PowerMeterRxCounter[PwrMtrMax];
+uint32_t PowerMeterTxCounter[PwrMtrMax];
 TotErrorRate_t TotErrorRate;
 
 void DefaultValue(void);
@@ -417,7 +419,7 @@ void SysTick_Handler(void)
             {
                 MeterErrorRate5Min_Wp = 0 ;
             }
-            for(i=0;i<PwrMeterMax;i++)
+            for(i=0;i<PwrMtrMax;i++)
             {
                 MeterErrorRate5Min_Tx[i][MeterErrorRate5Min_Wp]=1;
                 MeterErrorRate5Min_Rx[i][MeterErrorRate5Min_Wp]=1;
@@ -508,6 +510,30 @@ void UART02_IRQHandler(void)
 											return;										
 									}								
 									break;
+							case SYSTEM_POLLING_PYR:
+									if (METERRxQ[0] != PollingPyrID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}								
+									break;
+							case SYSTEM_POLLING_SS:
+									if (METERRxQ[0] != PollingSoilSensorID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}								
+									break;
+							case SYSTEM_POLLING_AirSensor:
+									if (METERRxQ[0] != PollingAirSensorID){
+											METERRxQ_wp=0;
+											METERRxQ_cnt=0; 
+											METERRxQ_rp=0; 
+											return;										
+									}								
+									break;		
 							case SYSTEM_POLLING_INV:
 									if(!((METERRxQ[0] == 'E') || (METERRxQ[0] == 'V')) &&
 											((METERRxQ[1] == 'P') || (METERRxQ[1] == 'G')) &&
@@ -935,6 +961,7 @@ void UART2_Init(uint32_t u32baudrate)
 	//UART_EnableInt(UART2, (UART_INTEN_RDAIEN_Msk | UART_INTEN_THREIEN_Msk));
 	UART_EnableInt(UART2, (UART_INTEN_RDAIEN_Msk  ));
 	NVIC_EnableIRQ(UART02_IRQn);
+	Delay_10ms(60);
 }
 
 void SYS_Init(void)
@@ -1237,7 +1264,7 @@ int main()
 	WDT_RESET_COUNTER();
 	
 //	STR_METER_D MD;
-//	for(uint8_t i=0; i < PwrMeterMax; i++)
+//	for(uint8_t i=0; i < PwrMtrMax; i++)
 //	{
 //		I2cReadDataStruct(i, &MD);
 //		MeterData[i] = MD;
@@ -1251,7 +1278,7 @@ int main()
 	//DIR_READER_RS485_Out();
 	//_SendStringToREADER(ReaderTxBuffer,10);
 	
-    //MaxPowerMeter = PwrMeterMax ;
+    //MaxPowerMeter = PwrMtrMax ;
     MaxPowerMeter = 1 ;
 
 
@@ -1367,8 +1394,8 @@ void DisableHostUartTx(void)
 float fErrorRate,tmpTx,tmpRx;
 
 /***
-*	@brief	Calculate error rate.
-* power meter, Bms, water meter, inverter *
+*	@brief		Calculate error rate.
+* @device		power meter, Bms, water meter, Pyranometer inverter *
  ***/
 void CalErrorRate(void)
 {
@@ -1378,7 +1405,7 @@ void CalErrorRate(void)
 		//	power meter error rate calculation
     
 		acmTx = 0; acmRx = 0;
-    for (i=0;i<PwrMeterMax;i++)
+    for (i=0;i<PwrMtrMax;i++)
     {
         MeterErrorRate_Tx[i] = 0 ;
         MeterErrorRate_Rx[i] = 0 ;
@@ -1399,7 +1426,7 @@ void CalErrorRate(void)
 	
 		//	Bms error rate calculation
 		acmTx = 0;	acmRx = 0;
-		for (uint8_t i = 0; i < PwrMeterMax; i++ )
+		for (uint8_t i = 0; i < BmsMax; i++ )
 		{		
 				if ((BmsError.Fail[i] + BmsError.Success[i]) > 0)
 				{
@@ -1420,7 +1447,7 @@ void CalErrorRate(void)
 		
 		//	WM error rate culculation
 		acmTx = 0;	acmRx = 0;
-		for (uint8_t i = 0; i < WtrMeterMax; i++ )
+		for (uint8_t i = 0; i < WtrMtrMax; i++ )
 		{
 				
 				if ((WMError.Fail[i] + WMError.Success[i]) > 0)
@@ -1439,6 +1466,72 @@ void CalErrorRate(void)
 		}
 		fErrorRate = acmRx/acmTx;
 		TotErrorRate.WaterMeter = (uint8_t) (fErrorRate*100);
+
+		//	Pyranometer error rate culculation
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < PyrMtrMax; i++ )
+		{
+				
+				if ((PyrError.Fail[i] + PyrError.Success[i]) > 0)
+				{
+						tmpTx = (float)PyrError.Fail[i] + PyrError.Success[i];
+						tmpRx = (float)PyrError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						PyrError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						tmpTx = 0;
+						tmpRx = 0;
+						PyrError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.Pyranometer = (uint8_t) (fErrorRate*100);
+		
+		//	Soil Sensor error rate culculation
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < SoilSensorMax; i++ )
+		{
+				
+				if ((SoilSensorError.Fail[i] + SoilSensorError.Success[i]) > 0)
+				{
+						tmpTx = (float)SoilSensorError.Fail[i] + SoilSensorError.Success[i];
+						tmpRx = (float)SoilSensorError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						SoilSensorError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						tmpTx = 0;
+						tmpRx = 0;
+						SoilSensorError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.SoilSensor = (uint8_t) (fErrorRate*100);
+
+		//	Air Sensor error rate culculation
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < AirSensorMax; i++ )
+		{
+				
+				if ((AirSensorError.Fail[i] + AirSensorError.Success[i]) > 0)
+				{
+						tmpTx = (float)AirSensorError.Fail[i] + AirSensorError.Success[i];
+						tmpRx = (float)AirSensorError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						AirSensorError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						tmpTx = 0;
+						tmpRx = 0;
+						AirSensorError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
+		}
+		fErrorRate = acmRx/acmTx;
+		TotErrorRate.AirSensor = (uint8_t) (fErrorRate*100);
 		
 		//	Inv error rate calculation
 		if ((InvError.Fail + InvError.Success) > 0)
@@ -1454,11 +1547,6 @@ void CalErrorRate(void)
 		}
 		TotErrorRate.Inverter = (uint8_t) (fErrorRate*100);
 }
-
-// TIME_DCHECK_MODE * 20mSec
-#define TIME_DCHECK_MODE	25
-
-
 
 
 void RecoverSystemMoniter(void)
@@ -1751,7 +1839,7 @@ void SystemPolling(void)
         case SYSTEM_POLLING_BMS:
 						
 						//	When BMS Polling over, Go to water meter device polling state
-						if (PollingBmsID > MaxBmsDevices){
+						if (PollingBmsID > BmsMax){
 								PollingBmsID = 1 ;
 								BmsPollingFinishedFlag = TRUE;
 						}					
@@ -1760,17 +1848,36 @@ void SystemPolling(void)
 								//	go to Bms polling process
 								BmsPolling();
             } else {
-								//	Switch baud rate back to 2400 bps
-								UART2_Init(2400);
+								//	Switch baud rate to 9600 bps
+								UART2_Init(9600);
 								BmsPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
 						}
             break;
+						
+        case SYSTEM_POLLING_AirSensor:
+						
+						//	When Air Sensor Polling over, Go to water meter device polling state
+						if (PollingAirSensorID > AirSensorMax){
+								PollingAirSensorID = 1 ;
+								AirSensorPollingFinishedFlag = TRUE;
+						}					
+
+            if (!AirSensorPollingFinishedFlag) {
+								//	go to Bms polling process
+								BmsPolling();
+            } else {
+								//	Switch baud rate back to 2400 bps
+								UART2_Init(2400);
+								AirSensorPollingFinishedFlag = FALSE;
+								SystemPollingState = SYSTEM_POLLING_READY;
+						}
+            break;						
 
 				case SYSTEM_POLLING_WM:
             	
 						//	When water meter Polling over, Go to Inverter device polling state
-						if ( PollingWMID > WtrMeterMax )
+						if ( PollingWMID > WtrMtrMax )
 						{
 								PollingWMID = 1 ;
 								WMPollingFinishedFlag = TRUE;
@@ -1787,7 +1894,7 @@ void SystemPolling(void)
 						
 				case SYSTEM_POLLING_PYR:
 					
-						if ( PollingPyrID > PyrMeterMax )
+						if ( PollingPyrID > PyrMtrMax )
 						{
 								PollingPyrID = 1 ;
 								PyrPollingFinishedFlag = TRUE;
@@ -1800,7 +1907,24 @@ void SystemPolling(void)
 								PyrPollingFinishedFlag = FALSE;
 								SystemPollingState = SYSTEM_POLLING_READY;
 						}
-            break;						
+            break;	
+
+				case SYSTEM_POLLING_SS:
+					
+						if ( PollingSoilSensorID > SoilSensorMax )
+						{
+								PollingSoilSensorID = 1 ;
+								SoilSensorPollingFinishedFlag = TRUE;
+						}
+
+            if (!SoilSensorPollingFinishedFlag) {
+								//	go to water meter polling process
+								SoilSensorPolling();
+            } else {
+								SoilSensorPollingFinishedFlag = FALSE;
+								SystemPollingState = SYSTEM_POLLING_READY;
+						}
+            break;							
 						
 				case SYSTEM_POLLING_INV:
 					
@@ -1855,8 +1979,16 @@ void ModbusDataProcess(void)
 								
 								case SYSTEM_POLLING_PYR:
 										PyrDataProcess();
-										break;								
-										
+										break;	
+								
+								case SYSTEM_POLLING_SS:
+										SoilSensorDataProcess();
+										break;
+
+								case SYSTEM_POLLING_AirSensor:
+										AirSensorDataProcess();
+										break;
+								
 								default:
 										break;
 						}

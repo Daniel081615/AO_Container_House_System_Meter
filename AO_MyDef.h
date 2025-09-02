@@ -31,11 +31,13 @@
 #include "ota_manager.h"
 
 //	Per Meter Board
-#define PwrMeterMax 1
+#define PwrMtrMax 1
 #define BmsMax			1
-#define WtrMeterMax 1
+#define WtrMtrMax 1
 #define InvMax			1
-#define	PyrMeterMax 1
+#define	PyrMtrMax 1
+#define	SoilSensorMax 1
+#define	AirSensorMax 1
 
 //#define METER_TEST
 
@@ -286,64 +288,6 @@
 #define TUTANG_E21nE31			0x03
 #define DEM_510c					0x04
 
-enum DEFINE_RS485_READER_TOKEN {
-	READER_CMD_ALIVE=0x10,			//0x10			
-	READER_CMD_CHG_MODE, 			//0x11
-	READER_CMD_CHG_BALANCE,			//0x12
-	READER_CMD_CHG_USER_INFO,		//0x13
-	READER_CMD_OPEN_DOOR,			//0x14
-	READER_CMD_GET_SYS_INFO, 			//0x15	
-	READER_CMD_GET_DOOR_RCD,		//0x16
-	READER_CMD_SHOW_MSG,			//0x17
-	READER_CMD_SHOW_ID,				//0x18			
-	READER_CMD_LCD_SHOW,			//0x19
-	READER_CMD_SYS_SW,				//0x1A
-	READER_CMD_CLEAR_FLAG,			//0x1B
-	
-	
-	READER_RSP_ACK=0x30, 			//0x30
-	READER_RSP_ALIVE,				//0x31
-	READER_RSP_SYS_INFO, 				//0x32
-	READER_RSP_USER_BAL, 				//0x33
-	READER_RSP_DOOR_RCD,			//0x34
-	
-};
-
-enum DEFINE_RS485_CENTER_TOKEN {
-
-CTR_ALIVE=0x10,				//0x10			
-CTR_GET_POWER_ALL,			//0x11
-CTR_GET_ERROR_TABLE,			//0x12
-CTR_SYS_SW,					//0x13
-CTR_RSP_SYS_INFO,				//0x14
-CTR_RSP_GET_ERROR_TABLE,	//0x15
-CTR_READER_INIT,				//0x16
-CTR_READER_INIT_ONE,			//0x17
-CTR_SET_USER_INFO,			//0x18
-CTR_RSP_ACK,					//0x19
-CTR_RSP_POWER_ALL,			//0x1A
-CTR_RSP_ERROR_TABLE,			//0x1B
-CTR_ADD_VALUE,				//0x1C
-CTR_DEC_VALUE,					//0x1D
-CTR_CHG_ROOM_SETTING,		//0x1E
-CTR_POWER_ON,				//0x1F
-CTR_POWER_OFF,				//0x20
-CTR_GET_RECORD,				//0x21
-CTR_RSP_GET_RECORD,			//0x22
-CTR_ALIVE_INIT,					//0x23
-CTR_BOOTLOADER_INIT,			//0x24
-CTR_BOOTLOADER_ACK,			//0x25
-CTR_ReBotSuccess_ACK,			//0x26
-CTR_ReBotFalid_ACK, 			//0x27
-CTR_SAVE_INFO,					//0x28
-CTR_GET_USER_INFO,			//0x29
-CTR_RSP_USER_INFO,			//0x2A
-CTR_METER_RESET,				//0x2B
-CTR_FIRST_RESET_STATUS, 		//0x2C
-CTR_OPEN_DOOR,				//0x2D
-
-};
-
 enum DEFINE_POWER_METER_STATE {
 	MP_READY,	
 	MP_POLLING_RSP,
@@ -362,25 +306,6 @@ enum DEFINE_POWER_METER_STATE {
 };
 
 
-#define INIT_S1	0
-#define INIT_S2 	1
-#define INIT_S3 	2
-#define INIT_S4 	3
-#define INIT_S5 	4
-#define INIT_S6 	5
-#define INIT_S7 	6
-#define INIT_S8	7
-#define INIT_S9	8
-#define INIT_S10	9
-
-// Room Mode
-#define RM_NULL					0
-#define RM_POWER_OFF_READY		1
-#define RM_POWER_ON_READY		2
-#define RM_FREE_MODE_READY		3
-#define RM_STOP_MODE_READY		4
-#define RM_SUPER_MODE_READY		5
-#define RM_ERROR					6
 
 // Time Index
 #define INX_YEAR_H		0
@@ -401,59 +326,10 @@ enum DEFINE_POWER_METER_STATE {
 #define INX_TIME_START_S	(READER_TOKEN_LENGTH-4)
 #define INX_TIME_START_W	(READER_TOKEN_LENGTH-3)
 
-#define NODE_CLEAR_CARD_FLAG			0x01
-#define NODE_CLEAR_BUTTON_FLAG		0x02
-#define NODE_UPDATE_USER_INFO		0x04
-#define NODE_SAVE_USER_INFO			0x08
-#define NODE_UPDATE_ROOM_INFO		0x10
-#define NODE_DATA_DIRECT				0x80
-
-#define NODE_TIME_SYNC				0x40
 
 #define RELAY_ON	0x01
 #define RELAY_OFF	0x00
 
-// Meter => Center
-
-#define MIN_METER_DI_TIMES		10
-#define SEND_NODE2_Q_MAX		5
-
-#define MIN_BUTTON_DI_TIMES	250
-
-// Status Code (Host)
-#define STATUS_MY_TOKEN_FINISH			0xD0
-#define STATUS_MY_TOKEN_NC				0xD1
-#define STATUS_NOT_MY_TOKEN				0xE0
-
-#define STATUS_ERROR					0xF0
-#define STATUS_ERROR_NODE2_UART			0xF1
-#define STATUS_ERROR_NODE1_UART		0xF2
-
-// Response Code (Reader)
-#define STATUS_NODE1_TOKEN_FINISH		0xA0
-#define STATUS_NODE1_TOKEN_NC			0xA1
-
-
-
-// Response Code (Host)
-#define RSP_CMD_RESULT				0xD0
-#define RSP_REQ_RESULT				0xD1
-#define RSP_MY_TOKEN_FINISH			0xD2
-#define RSP_MY_TOKEN_NC				0xD3
-
-#define RSP_NOT_MY_TOKEN			0xE0
-
-#define RSP_ERROR					0xF0
-#define RSP_ERROR_NODE2_UART			0xF1
-#define RSP_ERROR_METER_UART		0xF2
-
-// Response Code (METER)
-#define RSP_METER_TOKEN_FINISH		0xA0
-#define RSP_METER_TOKEN_NC			0xA1
-
-#define CHARGE_MODE_FREE			0x01
-#define CHARGE_MODE_CHARGE			0x02
-#define CHARGE_MODE_STOP			0x03
 
 enum DEFINE_RS485_METER_TOKEN {
 
@@ -461,8 +337,11 @@ METER_CMD_ALIVE=0x10,				//0x10
 METER_GET_CMD_POWER_METER,
 METER_GET_CMD_BMS,
 METER_GET_CMD_WATER_METER,
+METER_GET_CMD_PYRANOMETER,	//0x14
+METER_GET_CMD_SOILSENSOR,	
+METER_GET_CMD_AIRSENSOR,	
 METER_GET_CMD_INV,	
-
+	
 CMD_MTR_OTA_UPDATE = 0x20,	
 CMD_MTR_SWITCH_FWVER,
 CMD_GET_MTR_FW_STATUS,
@@ -473,8 +352,11 @@ METER_RSP_SYS_INFO,				//0x31
 METER_RSP_USER_DATA,		//0x32
 METER_RSP_POWER_DATA,			//0x33
 METER_RSP_BMS_DATA,			//0x34
-METER_RSP_WM_DATA,				//0x35
-METER_RSP_INV_DATA,			//0x36
+METER_RSP_WATER_DATA,				//0x35
+METER_RSP_PYR_DATA,			//0x36
+METER_RSP_SOIL_DATA,				//0x37
+METER_RSP_AIR_DATA,			//0x38
+METER_RSP_INV_DATA,					//0x39
 
 };
 
@@ -523,8 +405,10 @@ enum DefineDevicePolling{
 	SYSTEM_POLLING_READY,
 	SYSTEM_POLLING_METER,
 	SYSTEM_POLLING_BMS,
+	SYSTEM_POLLING_AirSensor,
 	SYSTEM_POLLING_WM,
 	SYSTEM_POLLING_PYR,	
+	SYSTEM_POLLING_SS,
 	SYSTEM_POLLING_INV,
 
 };
@@ -621,6 +505,9 @@ typedef struct {
 	uint8_t PowerMeter;
 	uint8_t Bms;
 	uint8_t WaterMeter;
+	uint8_t Pyranometer;
+	uint8_t	SoilSensor;
+	uint8_t	AirSensor;	
 	uint8_t Inverter;
 }TotErrorRate_t;
 #endif 

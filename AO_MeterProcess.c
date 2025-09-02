@@ -23,7 +23,7 @@ void SendMeter_SystemSW(void);
 void MeterSuccess(void);
 void MeterTimeoutProcess(void);
 uint8_t _SendStringToMETER(uint8_t *Str, uint8_t len);
-uint8_t GapErrorTimes[PwrMeterMax];
+uint8_t GapErrorTimes[PwrMtrMax];
 uint8_t TickMeter,MeterRelayStatus;
 _Bool MeterRelayStausReady,fgMeterAddValue;
 uint8_t PowerMeterReadErrorCnt;
@@ -34,8 +34,8 @@ uint16_t Tick1S_ErrorRateGap;
 uint32_t PowerMeterNG;
 
 uint8_t  MeterErrorRate5Min_Wp;
-uint16_t MeterErrorRate5Min_Tx[PwrMeterMax][12];
-uint16_t MeterErrorRate5Min_Rx[PwrMeterMax][12];
+uint16_t MeterErrorRate5Min_Tx[PwrMtrMax][12];
+uint16_t MeterErrorRate5Min_Rx[PwrMtrMax][12];
 
 _Bool MeterPollingFinishedFlag;
 
@@ -73,8 +73,8 @@ void MeterPolling(void)
                 PowerMeterID = PollingMeterID ;
             } else {
                 // Commands 
-                PwrMtrMBCmd = PwrMeterCmdList[PollingMeterID-1] ;
-                PwrMeterCmdList[PollingMeterID-1] = MBPMCMD_READY ;
+                PwrMtrMBCmd = PwrMtrCmdList[PollingMeterID-1] ;
+                PwrMtrCmdList[PollingMeterID-1] = MBPMCMD_READY ;
                 PowerMeterID = PollingMeterID ;
                 switch ( PwrMtrMBCmd )	
                 {

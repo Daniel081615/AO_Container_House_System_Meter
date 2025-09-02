@@ -13,6 +13,9 @@
 #include "AO_BMSModbusProcess.h"
 #include "AO_WaterMeterModbusProcess.h"
 #include "AO_InverterModbusProcess.h"
+#include "AO_Pyranometer.h"
+#include "AO_SoilSensor.h"
+#include "AO_AirSensor.h"
 
 extern uint8_t SendHost_QWp,SendHost_QRp,SendHost_QCounter;
 
@@ -36,35 +39,30 @@ uint8_t MeterActive;
 void HostProcess(void);
 void CalChecksumH(void);
 void ClearRespDelayTimer(void);
-void SendHost_SystemInformation(void);
-void Host_UserInfoUpdated(void);
-void SendHost_ErrorTable(void);
-void SendHost_PowerMeter(void);
-void SendHost_Ack(void);
+
+
 void SystemSwitchProcess(void);
-void Host_AliveProcess(void);
-void SendHost_UserBalance(uint8_t fnUserIndex);
-void GetUserProcess(void);
-void Host_RoomSettingUpdated(void);
-void C2M_FlagProcess(uint8_t u8Flag);
-void Host_UserBalanceUpdated(void);
-void Host_OpenDoorProcess(void);
-void SendHost_PowerMeterData(void);
-void Host_UserChangeMode(void);
-void SetStartInfor(uint8_t fnMemberIndex);
-void SendHost_UserData(void);
-void SendHost_PowerData(void);
-void Host_ChangeRoomData(void);
- void Host_ChangeUserData(void);
  
-void Host_PowerMeterDataProcess(void);
+void Host_AliveProcess(void);
+void Host_PwrMtrDataProcess(void);
 void Host_BmsDataProcess(void);
-void Host_WMDataProcess(void);
+void Host_WtrMtrDataProcess(void);
+void Host_PyrWtrDataProcess(void);
+void Host_SoilSensorDataProcess(void);
+void Host_AirSensorDataProcess(void);
 void Host_InvDataProcess(void);
 
-uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len);
+void SendHost_Ack(void);
+void SendHost_SystemInformation(void);
+void SendHost_PwrMtrData(void);
+void SendHost_BmsData(void);
+void SendHost_WtrMtrData(void);
+void SendHost_PyrMtrData(void);
+void SendHost_SoilData(void);
+void SendHost_AirData(void);
+void SendHost_InvData(void);
 
-uint8_t LastDataUpdated;
+uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len);
 
 void GetHostRTC(void);
 
@@ -73,10 +71,8 @@ void Host_OTAMenterProcess(void);
 void SendHost_MenterFWinfo(void);
 void SendHost_MenterFWActivatedInfo(void);
 
-/***	Bms, WM, Inv SendHost module	***/
-void SendHost_BmsData(void);
-void SendHost_WMData(void);
-void SendHost_InvData(void);
+
+
 
 /*********************************
  * Define : Host TokenHost 
@@ -149,7 +145,7 @@ void HostProcess(void)
                         ClearRespDelayTimer() ;	
                         break;							
                     case METER_GET_CMD_POWER_METER :
-                        Host_PowerMeterDataProcess();                        
+                        Host_PwrMtrDataProcess();                        
                         CmdType = METER_RSP_POWER_DATA ;
                         ClearRespDelayTimer() ;	
                         break;
@@ -159,17 +155,30 @@ void HostProcess(void)
                         ClearRespDelayTimer() ;	
                         break;										
                     case METER_GET_CMD_WATER_METER :
-                        Host_WMDataProcess();                        
-                        CmdType = METER_RSP_WM_DATA ;
+                        Host_WtrMtrDataProcess();                        
+                        CmdType = METER_RSP_WATER_DATA ;
                         ClearRespDelayTimer() ;	
                         break;	
+										case METER_GET_CMD_PYRANOMETER:
+                        Host_PyrWtrDataProcess();                        
+                        CmdType = METER_RSP_PYR_DATA ;
+                        ClearRespDelayTimer();
+												break;
+                    case METER_GET_CMD_SOILSENSOR :
+                        Host_SoilSensorDataProcess();                        
+                        CmdType = METER_RSP_SOIL_DATA ;
+                        ClearRespDelayTimer() ;	
+                        break;
+                    case METER_GET_CMD_AIRSENSOR :
+                        Host_AirSensorDataProcess();                        
+                        CmdType = METER_RSP_AIR_DATA ;
+                        ClearRespDelayTimer() ;	
+                        break;										
                     case METER_GET_CMD_INV :
                         Host_InvDataProcess();                        
                         CmdType = METER_RSP_INV_DATA ;
                         ClearRespDelayTimer() ;	
                         break;
-
-										 	// MTR	ota commamd
                     case CMD_MTR_OTA_UPDATE:
                         Host_OTAMenterProcess();
                         ClearRespDelayTimer();
@@ -188,7 +197,6 @@ void HostProcess(void)
         if ( iTickDelaySendHostCMD > WaitTime)
         {
             bDelaySendHostCMD = 0 ;
-						//	??
             if ( (HostMeterIndex+1) == MyMeterBoardID )
             {
                 switch (CmdType)
@@ -201,15 +209,27 @@ void HostProcess(void)
                         break;
 										
                     case METER_RSP_POWER_DATA :
-                        SendHost_PowerData();
+                        SendHost_PwrMtrData();
                         break;
 										
 										case METER_RSP_BMS_DATA:
 												SendHost_BmsData();
 												break;
 										
-										case METER_RSP_WM_DATA:
-												SendHost_WMData();
+										case METER_RSP_WATER_DATA:
+												SendHost_WtrMtrData();
+												break;
+										
+										case METER_RSP_PYR_DATA:
+												SendHost_PyrMtrData();
+												break;
+
+										case METER_RSP_SOIL_DATA:
+												SendHost_SoilData();
+												break;
+										
+										case METER_RSP_AIR_DATA:
+												SendHost_AirData();
 												break;
 										
 										case METER_RSP_INV_DATA:
@@ -256,7 +276,7 @@ void Host_AliveProcess(void)
         if ( HostData_P == 0x30 )
         {
             u8BuferIndex = 9 ;
-            for (i=0;i<PwrMeterMax;i++)
+            for (i=0;i<PwrMtrMax;i++)
             {
                 RoomMode[i] = TokenHost[u8BuferIndex++];
             }            
@@ -265,7 +285,7 @@ void Host_AliveProcess(void)
 
     if ( (iSystemTime[4] == 0) && (iSystemTime[5] == 0))        
     {
-        for (i=0;i<PwrMeterMax;i++)
+        for (i=0;i<PwrMtrMax;i++)
         {
             if ( PowerMeterTxCounter[i] > 10 )
             {
@@ -279,13 +299,13 @@ void Host_AliveProcess(void)
 
 /***	Process the device sub cmd from Center 	***/
 //	Using Cmd list store the cmds, and do the Cmds in the meter board polling states
-void Host_PowerMeterDataProcess(void)
+void Host_PwrMtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
 	
 		if (TokenHost[4] != 0x00)
 		{
-				PwrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+				PwrMtrCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
 		}
 }
 
@@ -309,14 +329,39 @@ void Host_BmsDataProcess(void)
 
 }
 
-void Host_WMDataProcess(void)
+void Host_WtrMtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
 	
 		if (TokenHost[4] != 0x00)
 		{
-				WtrMeterCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+				WtrMtrCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
 		}
+}
+
+/***	Not accomplish yet, need to add cmd param in also.	***/
+void Host_PyrWtrDataProcess(void)
+{
+    HostPollingDeviceIdx = TokenHost[3];
+	
+		if (TokenHost[4] != 0x00)
+		{
+				PyrMtrCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+		}
+}
+
+void Host_SoilSensorDataProcess(void)
+{
+		HostPollingDeviceIdx = TokenHost[3];
+	
+		if (TokenHost[4] != 0x00)
+		{
+				SoilSensorCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
+		}
+}
+void Host_AirSensorDataProcess(void)
+{
+		HostPollingDeviceIdx = TokenHost[3];
 }
 
 void Host_InvDataProcess(void)
@@ -426,7 +471,7 @@ void SendHost_SystemInformation(void)
 
     fnPacketIndex = 5 ; 
 	
-		//	PowerMeter NG Status.
+		//	Powermeter NG Status.
     HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0xFF000000) >> 24 ;
     HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x00FF0000) >> 16 ;
     HostTxBuffer[fnPacketIndex++] = (PowerMeterNG & 0x0000FF00) >> 8 ;
@@ -436,11 +481,30 @@ void SendHost_SystemInformation(void)
     HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
     HostTxBuffer[fnPacketIndex++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[fnPacketIndex++] =  BmsError.BmsDeviceNG & 0x000000FF ;
-		//	WM NG Status.
+		//	Watermeter NG Status.
 		HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0xFF000000) >> 24 ;
     HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x00FF0000) >> 16 ;
     HostTxBuffer[fnPacketIndex++] = (WMError.WMDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[fnPacketIndex++] =  WMError.WMDeviceNG & 0x000000FF ;
+
+		//	Pyranometer NG Status.
+		HostTxBuffer[fnPacketIndex++] = (PyrError.PyrDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (PyrError.PyrDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (PyrError.PyrDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  PyrError.PyrDeviceNG & 0x000000FF ;
+
+		//	Soil sensor NG Status.
+		HostTxBuffer[fnPacketIndex++] = (SoilSensorError.SSDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (SoilSensorError.SSDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (SoilSensorError.SSDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  SoilSensorError.SSDeviceNG & 0x000000FF ;
+
+		//	Air sensor NG Status.
+		HostTxBuffer[fnPacketIndex++] = (AirSensorError.ASDeviceNG & 0xFF000000) >> 24 ;
+    HostTxBuffer[fnPacketIndex++] = (AirSensorError.ASDeviceNG & 0x00FF0000) >> 16 ;
+    HostTxBuffer[fnPacketIndex++] = (AirSensorError.ASDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[fnPacketIndex++] =  AirSensorError.ASDeviceNG & 0x000000FF ;
+
 		//	INV NG Status.
     HostTxBuffer[fnPacketIndex++] =  InvError.InvDeviceNG & 0x000000FF ;	
 
@@ -448,6 +512,9 @@ void SendHost_SystemInformation(void)
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.PowerMeter;
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.Bms;
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.WaterMeter;
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.Pyranometer;	
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.SoilSensor;
+    HostTxBuffer[fnPacketIndex++] = TotErrorRate.AirSensor;		
     HostTxBuffer[fnPacketIndex++] = TotErrorRate.Inverter;
 	
     
@@ -455,7 +522,7 @@ void SendHost_SystemInformation(void)
     
 }
 
-void SendHost_PowerData(void)
+void SendHost_PwrMtrData(void)
 {
     uint8_t fnPacketIndex,u8PowerMeterID;
 	
@@ -471,7 +538,7 @@ void SendHost_PowerData(void)
     HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0xFF000000) >> 24 ;
     HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x00FF0000) >> 16 ;
     HostTxBuffer[fnPacketIndex++] = (MeterData[u8PowerMeterID].TotalWatt & 0x0000FF00) >> 8 ;
-    HostTxBuffer[fnPacketIndex++] = MeterData[u8PowerMeterID].TotalWatt & 0x000000FF ;
+    HostTxBuffer[fnPacketIndex++] =  MeterData[u8PowerMeterID].TotalWatt & 0x000000FF ;
 	
 		
 
@@ -497,9 +564,9 @@ void SendHost_BmsData(void)
 		HostTxBuffer[fnPacketIndex++] = BmsData[u8BmsID].StateOfHealth;	//	SOH
 		//idx:9	Cell ststus 
 		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellStatus & 0xFF000000) >> 24 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellStatus & 0xFF000000) >> 16 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellStatus & 0xFF000000) >> 8 ;
-		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].CellStatus & 0xFF000000;	
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellStatus & 0x00FF0000) >> 16 ;
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellStatus & 0x0000FF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].CellStatus & 0x000000FF;	
 		//idx:13	Cell volt
 		for (uint8_t i = 0; i < 16; i++) {
 				HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].CellVolt[i] >> 8);
@@ -507,19 +574,19 @@ void SendHost_BmsData(void)
 		}
 		//idx:45	Battery watt 
 		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatWatt & 0xFF000000) >> 24 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatWatt & 0xFF000000) >> 16 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatWatt & 0xFF000000) >> 8 ;
-		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatWatt & 0xFF000000;	
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatWatt & 0x00FF0000) >> 16 ;
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatWatt & 0x0000FF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatWatt & 0x000000FF;	
 		//idx:49	Battery voltage 
 		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatVolt & 0xFF000000) >> 24 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatVolt & 0xFF000000) >> 16 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatVolt & 0xFF000000) >> 8 ;
-		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatVolt & 0xFF000000;	
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatVolt & 0x00FF0000) >> 16 ;
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatVolt & 0x0000FF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatVolt & 0x000000FF;	
 		//idx:53	Battery current 
 		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatCurrent & 0xFF000000) >> 24 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatCurrent & 0xFF000000) >> 16 ;
-		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatCurrent & 0xFF000000) >> 8 ;
-		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatCurrent & 0xFF000000;			
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatCurrent & 0x00FF0000) >> 16 ;
+		HostTxBuffer[fnPacketIndex++] = (BmsData[u8BmsID].BatCurrent & 0x0000FF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  BmsData[u8BmsID].BatCurrent & 0x000000FF;			
 		//idx:63	Battery temperature [1-5]	
 		for (uint8_t i = 0; i<5; i++)
 		{		
@@ -539,11 +606,11 @@ void SendHost_BmsData(void)
  *	@Send			Communication rate Valve status, Totla used water volume
  *
  ***/
-void SendHost_WMData(void)
+void SendHost_WtrMtrData(void)
 {
     uint8_t fnPacketIndex,u8WMID;
     
-    HostTxBuffer[2] = METER_RSP_WM_DATA ;	
+    HostTxBuffer[2] = METER_RSP_WATER_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	
     HostTxBuffer[4] = u8WMID ; 	
     fnPacketIndex = 5;
@@ -554,11 +621,53 @@ void SendHost_WMData(void)
 		HostTxBuffer[fnPacketIndex++] = WMData[u8WMID].ValveState;			// 0xff : closed, 0x00 : opened
 	
 		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0xFF000000) >> 24 ;
-		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0xFF000000) >> 16 ;
-		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0xFF000000) >> 8 ;
-		HostTxBuffer[fnPacketIndex++] =  WMData[u8WMID].TotalVolume & 0xFF000000;		
+		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0x00FF0000) >> 16 ;
+		HostTxBuffer[fnPacketIndex++] = (WMData[u8WMID].TotalVolume & 0x0000FF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  WMData[u8WMID].TotalVolume & 0x000000FF;		
     
 		CalChecksumH();			
+}
+
+/***
+ *	@brief		Send Host  Pyranometer Data
+ *	@Send			Communication rate, Offste Value, Solaer radiation
+ *
+ ***/
+void SendHost_PyrMtrData(void)
+{
+    uint8_t fnPacketIndex,u8PyrID;
+    
+    HostTxBuffer[2] =  METER_RSP_PYR_DATA;	
+    HostTxBuffer[3] = fgToHostFlag; 	
+    HostTxBuffer[4] = u8PyrID ; 	
+    fnPacketIndex = 5;
+	
+		u8PyrID = HostPollingDeviceIdx-1;
+	
+		HostTxBuffer[fnPacketIndex++] = PyrError.ErrorRate[u8PyrID];			// Communicate rate
+		HostTxBuffer[fnPacketIndex++] = PyrMtrData[u8PyrID].OffsetValue & 0xFF00 >> 8;
+		HostTxBuffer[fnPacketIndex++] = PyrMtrData[u8PyrID].OffsetValue & 0x00FF;
+	
+		HostTxBuffer[fnPacketIndex++] = (PyrMtrData[u8PyrID].SolarRadiation & 0xFF00) >> 8 ;
+		HostTxBuffer[fnPacketIndex++] =  PyrMtrData[u8PyrID].SolarRadiation & 0x00FF;		
+    
+		CalChecksumH();			
+}
+
+/***
+ *	@brief		Send Host Soil sensor Data
+ *	@Send			Communication rate Valve status, Totla used water volume
+ ***/
+void SendHost_SoilData(void)
+{
+}
+
+/***
+ *	@brief		Send Host Air sensor Data
+ *	@Send			Communication rate Valve status, Totla used water volume
+ ***/
+void SendHost_AirData(void)
+{
 }
 
 /***

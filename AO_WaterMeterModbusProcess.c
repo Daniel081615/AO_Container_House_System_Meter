@@ -49,7 +49,7 @@ void WtrMeter_Init(void);
 
 /*** 	Water Meter Variables	***/
 WMError_t WMError;
-WMData_t WMData[WtrMeterMax];
+WMData_t WMData[WtrMtrMax];
 uint8_t PollingWMID, WMSetDeviceID;
 uint8_t WMPollingState, WMPollingStateIndex, WtrMtrModbusCmd;
 uint8_t WMMBCMD;
@@ -84,8 +84,8 @@ void WMPolling(void)
 										PollingWMID++;
 								}
 						} else {
-								WtrMtrModbusCmd =  WtrMeterCmdList[PollingWMID-1];
-								WtrMeterCmdList[PollingWMID-1] = MBWMCMD_READY ;
+								WtrMtrModbusCmd =  WtrMtrCmdList[PollingWMID-1];
+								WtrMtrCmdList[PollingWMID-1] = MBWMCMD_READY ;
 							
 								switch ( WtrMtrModbusCmd )	
                 {

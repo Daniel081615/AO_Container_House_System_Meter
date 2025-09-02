@@ -16,14 +16,14 @@ void PyrMtrSuccess(void);
 void PyrMtrTimeoutProcess(void);
 
 PyrError_t PyrError;
-PyrMeterData_t PyrMeterData[PyrMeterMax];
+PyrMtrData_t PyrMtrData[PyrMtrMax];
 
 _Bool 		PyrPollingFinishedFlag;
 uint8_t 	PollingPyrID;
-uint8_t 	PyrWBCMD;
+uint8_t 	PyrMBCMD;
 uint8_t 	PyrPollingState, PyrPollingStateIndex, PyrMtrModbusCmd;
 uint8_t 	PyrReadErrorCnt;
-uint16_t 	NewOffsetValue, NewAddr, NewBaudRate;
+uint16_t 	NewOffsetValue, PyrNewAddr, PyrNewBaudRate;
 
 /***
  *	@function		PyranometerPolling()
@@ -48,8 +48,8 @@ void PyranometerPolling(void)
 										PyrPollingStateIndex = 0;
 								}
 						} else {
-								PyrMtrModbusCmd = PyrMeterCmdList[PollingPyrID-1] ;
-								PyrMeterCmdList[PollingPyrID-1] = MBPYRCMD_READY;
+								PyrMtrModbusCmd = PyrMtrCmdList[PollingPyrID-1] ;
+								PyrMtrCmdList[PollingPyrID-1] = MBPYRCMD_READY;
 
 								switch ( PyrMtrModbusCmd )	
 								{
@@ -64,13 +64,13 @@ void PyranometerPolling(void)
 											break;
 										
 										case MBPYRCMD_SET_DEVICE_ADDRESS :
-												//NewAddr = 
+												//PyrNewAddr = 
 												PyrPollingState = PYR_SET_DEVICE_ADDRESS;
 												PyrMtrModbusCmd = MBPYRCMD_READY;												
 											break;
 										
 										case MBPYRCMD_SET_BAUD_RATE :
-												//NewBaudRate = 
+												//PyrNewBaudRate = 
 												PyrPollingState = PYR_SET_BAUD_RATE;
 												PyrMtrModbusCmd = MBPYRCMD_READY;
 											break;
@@ -129,16 +129,16 @@ void PyrDataProcess(void)
 	
 		if (GotDeviceRsp != PollingPyrID) return;	//	check the host address idx
 	
-		switch(PyrWBCMD)
+		switch(PyrMBCMD)
 		{
 				case MDBS_GET_SOLAR_RADIATION:
 						u16tmp = ((TokenMeter[3] << 8) | TokenMeter[4]);
-						PyrMeterData[PYRArrayIndex].SolarRadiation = u16tmp;
+						PyrMtrData[PYRArrayIndex].SolarRadiation = u16tmp;
 						break;
 						
 				case MDBS_GET_OFFSET_VALUE:
 						u16tmp = ((TokenMeter[3] << 8) | TokenMeter[4]);
-						PyrMeterData[PYRArrayIndex].OffsetValue = u16tmp;
+						PyrMtrData[PYRArrayIndex].OffsetValue = u16tmp;
 						break;
 				
 				default:
@@ -168,7 +168,7 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 		{
 				
 				case MDBS_GET_SOLAR_RADIATION:
-						PyrWBCMD = MDBS_GET_SOLAR_RADIATION;
+						PyrMBCMD = MDBS_GET_SOLAR_RADIATION;
 						MeterTxBuffer[1] = 0x03;
 						MeterTxBuffer[2] = 0x00;
 						MeterTxBuffer[3] = 0x00;
@@ -181,7 +181,7 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;
 				
 				case MDBS_GET_OFFSET_VALUE:
-						PyrWBCMD = MDBS_GET_OFFSET_VALUE;
+						PyrMBCMD = MDBS_GET_OFFSET_VALUE;
 						MeterTxBuffer[1] = 0x03;
 						MeterTxBuffer[2] = 0x00;
 						MeterTxBuffer[3] = 0x52;
@@ -194,7 +194,7 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;		
 
 				case MDBS_SET_OFFSET_VALUE:
-						PyrWBCMD = MDBS_SET_OFFSET_VALUE;
+						PyrMBCMD = MDBS_SET_OFFSET_VALUE;
 						MeterTxBuffer[1] = 0x06;
 						MeterTxBuffer[2] = 0x00;
 						MeterTxBuffer[3] = 0x52;
@@ -207,7 +207,7 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;					
 
 				case MDBS_GET_DEVICE_ADDRESS:
-						PyrWBCMD = MDBS_GET_DEVICE_ADDRESS;
+						PyrMBCMD = MDBS_GET_DEVICE_ADDRESS;
 						MeterTxBuffer[1] = 0x03; 
 						MeterTxBuffer[2] = 0x07; 
 						MeterTxBuffer[3] = 0xD0; 
@@ -220,12 +220,12 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;
 
 				case MDBS_SET_DEVICE_ADDRESS:
-						PyrWBCMD = MDBS_SET_DEVICE_ADDRESS;
+						PyrMBCMD = MDBS_SET_DEVICE_ADDRESS;
 						MeterTxBuffer[1] = 0x06; 
 						MeterTxBuffer[2] = 0x07; 
-						MeterTxBuffer[3] = 0xD0; 
-						MeterTxBuffer[4] = (NewAddr >> 8) & 0xff; 
-						MeterTxBuffer[5] = NewAddr & 0xff; 
+						MeterTxBuffer[3] = 0xD0;
+						MeterTxBuffer[4] = (PyrNewAddr >> 8) & 0xff; 
+						MeterTxBuffer[5] = PyrNewAddr & 0xff; 
 						CRC16(MeterTxBuffer, 6);
 						MeterTxBuffer[6] = uchCRCHi;
 						MeterTxBuffer[7] = uchCRCLo;
@@ -233,7 +233,7 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;
 				
 				case MDBS_GET_BAUD_RATE:
-						PyrWBCMD = MDBS_GET_BAUD_RATE;
+						PyrMBCMD = MDBS_GET_BAUD_RATE;
 						MeterTxBuffer[1] = 0x03; 
 						MeterTxBuffer[2] = 0x07; 
 						MeterTxBuffer[3] = 0xD1; 
@@ -246,20 +246,20 @@ void CmdModbus_PYR_SN300AL(uint8_t ModbusCmd)
 						break;
 				
 				case MDBS_SET_BAUD_RATE:
-						PyrWBCMD = MDBS_SET_BAUD_RATE;
+						PyrMBCMD = MDBS_SET_BAUD_RATE;
 						MeterTxBuffer[1] = 0x06; 
 						MeterTxBuffer[2] = 0x07; 
 						MeterTxBuffer[3] = 0xD1;
 						//	baud rate: 0x00 -> 2400 bmp, 0x01 -> 4800 bmp, 0x02 -> 9600 bmp
-						MeterTxBuffer[4] = (NewBaudRate >> 8) & 0xff; 
-						MeterTxBuffer[5] = NewBaudRate & 0xff; 
+						MeterTxBuffer[4] = (PyrNewBaudRate >> 8) & 0xff; 
+						MeterTxBuffer[5] = PyrNewBaudRate & 0xff; 
 						CRC16(MeterTxBuffer, 6);
 						MeterTxBuffer[6] = uchCRCHi;
 						MeterTxBuffer[7] = uchCRCLo;
 						_SendStringToMETER(MeterTxBuffer, 8);
 						break;
 				default :
-						PyrWBCMD = MDBS_PYRANO_OTHER;
+						PyrMBCMD = MDBS_PYRANO_OTHER;
 						break;
 		}
 }

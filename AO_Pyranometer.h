@@ -47,18 +47,18 @@ enum DefineModbusPYR{
 typedef struct {
 		uint16_t SolarRadiation;
 		uint16_t OffsetValue;
-} PyrMeterData_t;
+} PyrMtrData_t;
 
 typedef struct {
 	uint32_t PyrDeviceNG;
-	uint8_t Success[PyrMeterMax];
-	uint8_t Fail[PyrMeterMax];
-	uint8_t ErrorRate[PyrMeterMax];
+	uint8_t Success[PyrMtrMax];
+	uint8_t Fail[PyrMtrMax];
+	uint8_t ErrorRate[PyrMtrMax];
 } PyrError_t;
 
 
 
-extern PyrMeterData_t PyrMeterData[PyrMeterMax];
+extern PyrMtrData_t PyrMtrData[PyrMtrMax];
 extern PyrError_t PyrError;
 
 #endif		/***	AO_Pyranometer.h	***/

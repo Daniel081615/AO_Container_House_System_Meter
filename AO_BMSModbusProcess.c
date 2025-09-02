@@ -47,7 +47,7 @@ void Bms_Init(void);
 BmsData_t  BmsData[BmsMax];
 BmsError_t BmsError;
 
-uint8_t PollingBmsID, MaxBmsDevices, BmsNewAddr, BmsModbusCmd;
+uint8_t PollingBmsID, BmsNewAddr, BmsModbusCmd;
 uint8_t ChargeOnOff, DischargeOnOff, BatteryBalanceOnOff, BmsPollingState;
 uint8_t GotDeviceRsp;
 uint8_t BmsPollingStateIndex;

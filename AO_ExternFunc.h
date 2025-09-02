@@ -49,7 +49,6 @@ extern void WriteRoomModeToEE(void);
 extern void SendReader_GetUser(uint8_t UserIndex);
 extern void TurnOnPowerProcess(void);
 extern void TurnOffPowerProcess(void);
-extern void SendHost_UserBalance(uint8_t fnUserIndex);
 extern void SaveMeterPower2EE( void );
 extern void ReadMeterPowerFromEE( void );
 extern void MODBUS_CmdProcess(void);
@@ -64,20 +63,20 @@ extern void EnableHostUartTx(void);
 extern void DisableHostUartTx(void);
 extern uint8_t _SendStringToMETER(uint8_t *Str, uint8_t len);
 extern uint8_t PollingMeterID;
-extern uint8_t MaxPowerMeter, MaxBmsDevices;
+extern uint8_t MaxPowerMeter;
 extern uint16_t Tick1S_ErrorRateGap;
 extern uint8_t PayMode;
-extern uint8_t RoomMode[PwrMeterMax];
+extern uint8_t RoomMode[PwrMtrMax];
 
 extern uint8_t PwrMeterIDArray[10];
 extern uint8_t BmsIdArray[10];
 
-extern uint8_t MeterErrorRate[PwrMeterMax];
-extern uint16_t MeterErrorRate_Tx[PwrMeterMax];
-extern uint16_t MeterErrorRate_Rx[PwrMeterMax];
+extern uint8_t MeterErrorRate[PwrMtrMax];
+extern uint16_t MeterErrorRate_Tx[PwrMtrMax];
+extern uint16_t MeterErrorRate_Rx[PwrMtrMax];
 extern uint8_t     MeterErrorRate5Min_Wp;
-extern uint16_t MeterErrorRate5Min_Tx[PwrMeterMax][12];
-extern uint16_t MeterErrorRate5Min_Rx[PwrMeterMax][12];
+extern uint16_t MeterErrorRate5Min_Tx[PwrMtrMax][12];
+extern uint16_t MeterErrorRate5Min_Rx[PwrMtrMax][12];
 
 extern uint8_t ReaderPollingState,ReaderWaitTick,PollRetryReader;
 extern uint8_t PackageIndex1,GotReaderRSP,ReaderDeviceError;
@@ -85,7 +84,7 @@ extern uint8_t RecordWp,RecordRp,RecordCounter,TickRecord;
 extern uint8_t MeterActive;
 
 //extern STR_UserInfo Members[MEMBER_MAX_NO];
-extern STR_METER_D MeterData[PwrMeterMax];
+extern STR_METER_D MeterData[PwrMtrMax];
 extern uint8_t ControlState;
 extern uint8_t MyMeterBoardID;
 extern uint8_t iStatus;
@@ -140,7 +139,7 @@ extern uint8_t uchCRCHi;  /* high byte of CRC initialized */
 extern uint8_t uchCRCLo;  /* low byte of CRC initialized */
 extern uint8_t MeterType;
 extern uint32_t NowMeterPower;
-extern uint32_t LastMeterPower[PwrMeterMax];
+extern uint32_t LastMeterPower[PwrMtrMax];
 extern uint32_t TotalWattValue_Now;
 extern uint8_t AutoLockTime;
 extern uint8_t MeterMBCmd,MeterRelayStatus;
@@ -157,12 +156,11 @@ extern uint8_t TagChargeRCD_NewCnt, TagChargeRCD_WP, TagChargeRCD_RP;
 extern uint8_t PowerRCD_NewCnt, PowerRCD_WP, PowerRCD_RP;
 extern float Min_LowBalance;
 
-extern uint8_t RoomSetting;
 extern uint8_t PollingStateIndex;
 extern _Bool fgDIR485_Reader;
 extern uint8_t tmpMemberMode[3];
-extern uint32_t PowerMeterRxCounter[PwrMeterMax];
-extern uint32_t PowerMeterTxCounter[PwrMeterMax];
+extern uint32_t PowerMeterRxCounter[PwrMtrMax];
+extern uint32_t PowerMeterTxCounter[PwrMtrMax];
 extern uint8_t HOSTTxQ[MAX_HOST_TXQ_LENGTH];
 extern uint8_t HOSTRxQ[MAX_HOST_RXQ_LENGTH];
 extern uint8_t READERTxQ[MAX_READER_TXQ_LENGTH];
@@ -179,8 +177,9 @@ extern uint8_t METERRxQ_wp,METERRxQ_rp,METERRxQ_cnt;
 
 
 extern uint8_t GotDeviceRsp;
-extern volatile uint8_t PwrMeterCmdList[PwrMeterMax], BmsCmdList[BmsMax];
-extern volatile uint8_t WtrMeterCmdList[WtrMeterMax], PyrMeterCmdList[PyrMeterMax];
+extern volatile uint8_t PwrMtrCmdList[PwrMtrMax], BmsCmdList[BmsMax];
+extern volatile uint8_t WtrMtrCmdList[WtrMtrMax], PyrMtrCmdList[PyrMtrMax];
+extern volatile uint8_t SoilSensorCmdList[SoilSensorMax];
 
 extern TotErrorRate_t TotErrorRate;
 
