@@ -85,9 +85,9 @@ void BmsPolling(void)
 				/***	Cmds will be Process in anytime, and it will @NOT substitute the upcomming polling cmd.	***/
 				case	BMS_POLLING_READY:
 					
-						if (TickReadPowerTime >= ReadMeterTime)
+						if (TickReadDeviceTime >= ReadDeviceCmdTime)
 						{
-								TickReadPowerTime = 0 ;	
+								TickReadDeviceTime = 0 ;	
 								BmsPollingState = BMS_POLLING_CELL_V_CMD + BmsPollingStateIndex;
 								
 								if (BmsPollingState > BMS_POLLING_BAT_TEMP5_CMD)
@@ -685,9 +685,9 @@ void BmsDataProcess(void)
 		uint32_t u32temp;
 		uint8_t BmsArrayIndex;
 		
-		if (GotDeviceRsp != PollingBmsID) return;	//	check the host address idx
+		if (GotDeviceRsp != BmsIDArray[PollingBmsID-1]) return;	//	check the host address idx
 		
-		BmsArrayIndex = GotDeviceRsp -1;
+		BmsArrayIndex = PollingBmsID -1;
 	
 		switch (BmsMBCmd)
 		{

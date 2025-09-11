@@ -51,7 +51,7 @@ void Host_WtrMtrDataProcess(void);
 void Host_PyrWtrDataProcess(void);
 void Host_SoilSensorDataProcess(void);
 void Host_AirSensorDataProcess(void);
-void Host_InvDataProcess(void);
+void Host_WateringProcess(void);
 
 void SendHost_Ack(void);
 void SendHost_SystemInformation(void);
@@ -62,6 +62,7 @@ void SendHost_PyrMtrData(void);
 void SendHost_SoilData(void);
 void SendHost_AirData(void);
 void SendHost_InvData(void);
+void SendHost_WateringStatus(void);
 
 uint8_t _SendStringToHOST(uint8_t *Str, uint8_t len);
 
@@ -175,15 +176,18 @@ void HostProcess(void)
                         CmdType = METER_RSP_AIR_DATA ;
                         ClearRespDelayTimer() ;	
                         break;										
-                    case METER_GET_CMD_INV :
-                        Host_InvDataProcess();                        
+                    case METER_GET_CMD_INV :                     
                         CmdType = METER_RSP_INV_DATA ;
                         ClearRespDelayTimer() ;	
                         break;
-                    case CMD_MTR_OTA_UPDATE:
+                    case METER_OTA_UPDATE:
                         Host_OTAMenterProcess();
                         ClearRespDelayTimer();
                         break;
+										case METER_GET_CMD_WATERING:
+												Host_WateringProcess();
+												CmdType = METER_RSP_WATERING_STATUS ;
+												ClearRespDelayTimer();
                     default:
                         break;
                 }
@@ -236,6 +240,10 @@ void HostProcess(void)
 										case METER_RSP_INV_DATA:
 												SendHost_InvData();
 												break;
+										
+										case METER_RSP_WATERING_STATUS:
+												SendHost_WateringStatus();
+												break;
                     
 										default :
                         break;
@@ -283,7 +291,7 @@ void Host_AliveProcess(void)
 void Host_PwrMtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
-	
+		GetHostRTC();
 		if (TokenHost[4] != 0x00)
 		{
 				PwrMtrCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
@@ -299,7 +307,7 @@ void Host_PwrMtrDataProcess(void)
 void Host_BmsDataProcess(void)
 {   
     HostPollingDeviceIdx = TokenHost[3];
-	
+		GetHostRTC();
 		
 		if (TokenHost[4] != 0x00)
 		{
@@ -323,13 +331,13 @@ void Host_BmsDataProcess(void)
 													(uint32_t)TokenHost[8];
 				} 
 		}	
-
 }
 
 void Host_WtrMtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
-	
+		GetHostRTC();
+		
 		if (TokenHost[4] != 0x00)
 		{
 				WtrMtrCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
@@ -344,6 +352,7 @@ void Host_WtrMtrDataProcess(void)
 void Host_PyrWtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
+		GetHostRTC();
 	
 		if (TokenHost[4] != 0x00)
 		{
@@ -365,7 +374,7 @@ void Host_PyrWtrDataProcess(void)
 void Host_SoilSensorDataProcess(void)
 {
 		HostPollingDeviceIdx = TokenHost[3];
-	
+		GetHostRTC();
 		if (TokenHost[4] != 0x00)
 		{
 				SoilSensorCmdList[HostPollingDeviceIdx-1] = TokenHost[4];
@@ -440,16 +449,25 @@ void Host_SoilSensorDataProcess(void)
 														((uint32_t)TokenHost[6]);
 				}	
 		}
+
 }
 void Host_AirSensorDataProcess(void)
 {
 		HostPollingDeviceIdx = TokenHost[3];
+		GetHostRTC();
 }
 
-void Host_InvDataProcess(void)
+void Host_WateringProcess(void)
 {
-		//	Maybe no need
-    HostPollingDeviceIdx = TokenHost[3];
+		GetHostRTC();
+		uint16_t u16tmpNowTime;
+		
+		if (TokenHost[3] != 0x00)
+		{		
+				LED_G1_On();
+		} else {
+				LED_G1_Off();
+		}
 }
 
 /* Get Cmd From Center
@@ -457,10 +475,10 @@ void Host_InvDataProcess(void)
 1: OTA MeterID
 2: Meter OTA Cmd	(0x17)
 3: Sub Cmd
-	0x17 : CMD_MTR_OTA_UPDATE 		 
-	0x18 : CMD_MTR_SWITCH_FWVER 	
-	0x19 : CMD_GET_MTR_FW_STATUS
-	0x1A : CMD_MTR_FW_REBOOT
+	0x17 : METER_OTA_UPDATE 		 
+	0x18 : METER_SWITCH_FW 	
+	0x19 : METER_GET_FW_STATUS
+	0x1A : METER_REBOOT
 */
 void Host_OTAMenterProcess(void)
 {
@@ -473,24 +491,24 @@ void Host_OTAMenterProcess(void)
 		
 		switch(TokenHost[3])
     {
-			  case CMD_MTR_OTA_UPDATE:
+			  case METER_OTA_UPDATE:		//0x20
             WRITE_FW_STATUS_FLAG(OTA_UPDATE_FLAG);
             SendHost_MenterFWinfo();
             JumpToBootloader();
             break;
 
-        case CMD_MTR_SWITCH_FWVER:
+        case METER_SWITCH_FW:	//0x21
             WRITE_FW_STATUS_FLAG(SWITCH_FW_FLAG);
             SendHost_MenterFWinfo();
             MarkFwAsActive(FALSE);
             JumpToBootloader();
             break;
 				
-        case CMD_GET_MTR_FW_STATUS:
+        case METER_GET_FW_STATUS:	//0x22
             SendHost_MenterFWinfo();
             break;
 				
-        case CMD_MTR_FW_REBOOT:
+        case METER_REBOOT:			//0x23
             WRITE_FW_STATUS_FLAG(REBOOT_FW_FLAG);
             SendHost_MenterFWinfo();
             JumpToBootloader();
@@ -519,36 +537,36 @@ void SendHost_Ack(void)
     PktIdx = 5 ; 
 	
 		//	Powermeter NG Status.
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  PowerMeterNG & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  PwrMtrError.PwrMtrDeviceNG & 0x000000FF ;
 		//	BMS NG Status.
-		HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  BmsError.BmsDeviceNG & 0x000000FF ;
 		//	Watermeter NG Status.
-		HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  WtrMtrError.WMDeviceNG & 0x000000FF ;
 
 		//	Pyranometer NG Status.
-		HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  PyrMtrError.PyrDeviceNG & 0x000000FF ;
 
 		//	Soil sensor NG Status.
-		HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  SoilSensorError.SSDeviceNG & 0x000000FF ;
 
 		//	Air sensor NG Status.
-		HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  AirSensorError.ASDeviceNG & 0x000000FF ;
 
@@ -584,36 +602,36 @@ void SendHost_SystemInformation(void)
     PktIdx = 5 ; 
 	
 		//	Powermeter NG Status.
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (PowerMeterNG & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  PowerMeterNG & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (PwrMtrError.PwrMtrDeviceNG & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  PwrMtrError.PwrMtrDeviceNG & 0x000000FF ;
 		//	BMS NG Status.
-		HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (BmsError.BmsDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  BmsError.BmsDeviceNG & 0x000000FF ;
 		//	Watermeter NG Status.
-		HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (WtrMtrError.WMDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  WtrMtrError.WMDeviceNG & 0x000000FF ;
 
 		//	Pyranometer NG Status.
-		HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (PyrMtrError.PyrDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  PyrMtrError.PyrDeviceNG & 0x000000FF ;
 
 		//	Soil sensor NG Status.
-		HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (SoilSensorError.SSDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  SoilSensorError.SSDeviceNG & 0x000000FF ;
 
 		//	Air sensor NG Status.
-		HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x00FF0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x00ff0000) >> 16 ;
     HostTxBuffer[PktIdx++] = (AirSensorError.ASDeviceNG & 0x0000FF00) >> 8 ;
     HostTxBuffer[PktIdx++] =  AirSensorError.ASDeviceNG & 0x000000FF ;
 
@@ -635,58 +653,56 @@ void SendHost_SystemInformation(void)
 
 void SendHost_PwrMtrData(void)
 {
-    uint8_t PktIdx,PwrMtrArrayIdx;
+    uint8_t PktIdx,PwrMtrIdx;
 	
-    PwrMtrArrayIdx = HostPollingDeviceIdx-1;
+    PwrMtrIdx = HostPollingDeviceIdx-1;
     HostTxBuffer[2] = METER_RSP_POWER_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = PwrMtrArrayIdx ; 	
+    HostTxBuffer[4] = PwrMtrIdx ; 	
     PktIdx = 5;
-    HostTxBuffer[PktIdx++] = MeterErrorRate[PwrMtrArrayIdx];
+    HostTxBuffer[PktIdx++] = PwrMtrError.ErrorRate[PwrMtrIdx];
 	
-    HostTxBuffer[PktIdx++] = MeterData[PwrMtrArrayIdx].RelayStatus;
+    HostTxBuffer[PktIdx++] = MeterData[PwrMtrIdx].RelayStatus;
     // Total 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].TotalWatt & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].TotalWatt & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].TotalWatt & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].TotalWatt & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].TotalWatt & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].TotalWatt & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].TotalWatt & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].TotalWatt & 0x000000FF ;
 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].V & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].V & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].V & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].V & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].V & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].V & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].V & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].V & 0x000000FF ;
 	
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].I & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].I & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].I & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].I & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].I & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].I & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].I & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].I & 0x000000FF ;
 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].F & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].F & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].F & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].F & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].F & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].F & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].F & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].F & 0x000000FF ;
 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].P & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].P & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].P & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].P & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].P & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].P & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].P & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].P & 0x000000FF ;
 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].S & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].S & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].S & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].S & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].S & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].S & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].S & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].S & 0x000000FF ;
 	
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].PwrFactor & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].PwrFactor & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].PwrFactor & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].PwrFactor & 0x000000FF ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].PwrFactor & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].PwrFactor & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].PwrFactor & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].PwrFactor & 0x000000FF ;
 
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].Balance & 0xFF000000) >> 24 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].Balance & 0x00FF0000) >> 16 ;
-    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrArrayIdx].Balance & 0x0000FF00) >> 8 ;
-    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrArrayIdx].Balance & 0x000000FF ;
-		
-		HostTxBuffer[PktIdx++] = MeterData[PwrMtrArrayIdx].Mode;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].Balance & 0xff000000) >> 24 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].Balance & 0x00ff0000) >> 16 ;
+    HostTxBuffer[PktIdx++] = (MeterData[PwrMtrIdx].Balance & 0x0000FF00) >> 8 ;
+    HostTxBuffer[PktIdx++] =  MeterData[PwrMtrIdx].Balance & 0x000000FF ;
 	
     CalChecksumH();			
 }
@@ -697,52 +713,52 @@ void SendHost_PwrMtrData(void)
  ***/
 void SendHost_BmsData(void)
 {
-    uint8_t PktIdx,BmsArrayIdx;
-    BmsArrayIdx = HostPollingDeviceIdx-1;
+    uint8_t PktIdx,BmsIdx;
+    BmsIdx = HostPollingDeviceIdx-1;
 	
     HostTxBuffer[2] = METER_RSP_BMS_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = BmsArrayIdx ; 	
+    HostTxBuffer[4] = BmsIdx ; 	
     PktIdx = 5;
 	
-		HostTxBuffer[PktIdx++] = BmsError.ErrorRate[BmsArrayIdx];			// Communicate rate
-		HostTxBuffer[PktIdx++] = BmsData[BmsArrayIdx].BalanceStatus;	// Battery mode
-		HostTxBuffer[PktIdx++] = BmsData[BmsArrayIdx].StateOfCharge;
-		HostTxBuffer[PktIdx++] = BmsData[BmsArrayIdx].StateOfHealth;	//	SOH
+		HostTxBuffer[PktIdx++] = BmsError.ErrorRate[BmsIdx];			// Communicate rate
+		HostTxBuffer[PktIdx++] = BmsData[BmsIdx].BalanceStatus;	// Battery mode
+		HostTxBuffer[PktIdx++] = BmsData[BmsIdx].StateOfCharge;
+		HostTxBuffer[PktIdx++] = BmsData[BmsIdx].StateOfHealth;	//	SOH
 		//idx:9	Cell ststus 
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].CellStatus & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].CellStatus & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].CellStatus & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].CellStatus & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].CellStatus & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].CellStatus & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].CellStatus & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].CellStatus & 0x000000FF;	
 		//idx:13	Cell volt
 		for (uint8_t i = 0; i < 16; i++) {
-				HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].CellVolt[i] >> 8);
-				HostTxBuffer[PktIdx++] = BmsData[BmsArrayIdx].CellVolt[i];
+				HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].CellVolt[i] >> 8);
+				HostTxBuffer[PktIdx++] = BmsData[BmsIdx].CellVolt[i];
 		}
 		//idx:45	Battery watt 
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatWatt & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatWatt & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatWatt & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].BatWatt & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatWatt & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatWatt & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatWatt & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].BatWatt & 0x000000FF;	
 		//idx:49	Battery voltage 
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatVolt & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatVolt & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatVolt & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].BatVolt & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatVolt & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatVolt & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatVolt & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].BatVolt & 0x000000FF;	
 		//idx:53	Battery current 
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatCurrent & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatCurrent & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatCurrent & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].BatCurrent & 0x000000FF;			
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatCurrent & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatCurrent & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatCurrent & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].BatCurrent & 0x000000FF;			
 		//idx:63	Battery temperature [1-5]	
 		for (uint8_t i = 0; i<5; i++)
 		{		
-				HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].BatteryTemp[i] >> 8);
-				HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].BatteryTemp[i];
+				HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].BatteryTemp[i] >> 8);
+				HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].BatteryTemp[i];
 		}
 		//idx:65 	Mos temperature 
-		HostTxBuffer[PktIdx++] = (BmsData[BmsArrayIdx].MosTemp >> 8);
-		HostTxBuffer[PktIdx++] =  BmsData[BmsArrayIdx].MosTemp;
+		HostTxBuffer[PktIdx++] = (BmsData[BmsIdx].MosTemp >> 8);
+		HostTxBuffer[PktIdx++] =  BmsData[BmsIdx].MosTemp;
 		
 		CalChecksumH();			
 }
@@ -755,22 +771,22 @@ void SendHost_BmsData(void)
  ***/
 void SendHost_WtrMtrData(void)
 {
-    uint8_t PktIdx,WtrMtrArrayIdx;
-    WtrMtrArrayIdx = HostPollingDeviceIdx-1;
+    uint8_t PktIdx,WtrMtrIdx;
+    WtrMtrIdx = HostPollingDeviceIdx-1;
 	
     HostTxBuffer[2] = METER_RSP_WATER_DATA ;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = WtrMtrArrayIdx ; 	
+    HostTxBuffer[4] = WtrMtrIdx ; 	
     PktIdx = 5;
 	
 	
-		HostTxBuffer[PktIdx++] = WtrMtrError.ErrorRate[WtrMtrArrayIdx];			// Communicate rate
-		HostTxBuffer[PktIdx++] = WMData[WtrMtrArrayIdx].ValveState;			// 0xff : closed, 0x00 : opened
+		HostTxBuffer[PktIdx++] = WtrMtrError.ErrorRate[WtrMtrIdx];			// Communicate rate
+		HostTxBuffer[PktIdx++] = WMData[WtrMtrIdx].ValveState;			// 0xff : closed, 0x00 : opened
 	
-		HostTxBuffer[PktIdx++] = (WMData[WtrMtrArrayIdx].TotalVolume & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (WMData[WtrMtrArrayIdx].TotalVolume & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (WMData[WtrMtrArrayIdx].TotalVolume & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  WMData[WtrMtrArrayIdx].TotalVolume & 0x000000FF;		
+		HostTxBuffer[PktIdx++] = (WMData[WtrMtrIdx].TotalVolume & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (WMData[WtrMtrIdx].TotalVolume & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (WMData[WtrMtrIdx].TotalVolume & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  WMData[WtrMtrIdx].TotalVolume & 0x000000FF;		
     
 		CalChecksumH();			
 }
@@ -782,20 +798,20 @@ void SendHost_WtrMtrData(void)
  ***/
 void SendHost_PyrMtrData(void)
 {
-    uint8_t PktIdx,PyrArrayIdx;
-    PyrArrayIdx = HostPollingDeviceIdx-1;
+    uint8_t PktIdx,PyrMtrIdx;
+    PyrMtrIdx = HostPollingDeviceIdx-1;
 	
     HostTxBuffer[2] =  METER_RSP_PYR_DATA;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = PyrArrayIdx ; 	
+    HostTxBuffer[4] = PyrMtrIdx ; 	
     PktIdx = 5;
 	
-		HostTxBuffer[PktIdx++] = PyrMtrError.ErrorRate[PyrArrayIdx];			// Communicate rate
-		HostTxBuffer[PktIdx++] = PyrMtrData[PyrArrayIdx].OffsetValue & 0xFF00 >> 8;
-		HostTxBuffer[PktIdx++] = PyrMtrData[PyrArrayIdx].OffsetValue & 0x00FF;
+		HostTxBuffer[PktIdx++] = PyrMtrError.ErrorRate[PyrMtrIdx];			// Communicate rate
+		HostTxBuffer[PktIdx++] = PyrMtrData[PyrMtrIdx].OffsetValue & 0xff00 >> 8;
+		HostTxBuffer[PktIdx++] = PyrMtrData[PyrMtrIdx].OffsetValue & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (PyrMtrData[PyrArrayIdx].SolarRadiation & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  PyrMtrData[PyrArrayIdx].SolarRadiation & 0x00FF;		
+		HostTxBuffer[PktIdx++] = (PyrMtrData[PyrMtrIdx].SolarRadiation & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  PyrMtrData[PyrMtrIdx].SolarRadiation & 0x00ff;		
 	
 		CalChecksumH();			
 }
@@ -805,97 +821,98 @@ void SendHost_PyrMtrData(void)
  ***/
 void SendHost_SoilData(void)
 {
-    uint8_t PktIdx,SSArrayIdx;
+    uint8_t PktIdx,SoilSensorIdx;
+		SoilSensorIdx = HostPollingDeviceIdx-1;
     
     HostTxBuffer[2] =  METER_RSP_SOIL_DATA;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = SSArrayIdx ; 	
+    HostTxBuffer[4] = SoilSensorIdx ; 	
     PktIdx = 5;
 
-		HostTxBuffer[PktIdx++] = SoilSensorError.ErrorRate[SSArrayIdx];			// Communicate rate
+		HostTxBuffer[PktIdx++] = SoilSensorError.ErrorRate[SoilSensorIdx];			// Communicate rate
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Moisture & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Moisture & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Moisture & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Moisture & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Temperature & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Temperature & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Temperature & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Temperature & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].EC & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].EC & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].EC & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].EC & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].PH & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].PH & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].PH & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].PH & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Nitrogen & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Nitrogen & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Nitrogen & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Nitrogen & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Phosphorus & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Phosphorus & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Phosphorus & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Phosphorus & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Potassium & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Potassium & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Potassium & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Potassium & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Salinity & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Salinity & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Salinity & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Salinity & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].TDS & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].TDS & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].TDS & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].TDS & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Fertility & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Fertility & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Fertility & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Fertility & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].EC_Coef & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].EC_Coef & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].EC_Coef & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].EC_Coef & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Salinity_Coef & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Salinity_Coef & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Salinity_Coef & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Salinity_Coef & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].TDS_Coef & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].TDS_Coef & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].TDS_Coef & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].TDS_Coef & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Temp_Calib & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Temp_Calib & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Temp_Calib & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Temp_Calib & 0x00ff;
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Moisture_Calib & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Moisture_Calib & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Moisture_Calib & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Moisture_Calib & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].EC_Calib & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].EC_Calib & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].EC_Calib & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].EC_Calib & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].PH_Calib & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].PH_Calib & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].PH_Calib & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].PH_Calib & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Fert_Coef & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Fert_Coef & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Fert_Coef & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Fert_Coef & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Fert_Coef & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Fert_Coef & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Fert_Coef & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Fert_Coef & 0x000000FF;	
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Fert_Deviation & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Fert_Deviation & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Fert_Deviation & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Fert_Deviation & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Nitrogen_Coef & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Nitrogen_Coef & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Nitrogen_Coef & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Nitrogen_Coef & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Nitrogen_Coef & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Nitrogen_Coef & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Nitrogen_Coef & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Nitrogen_Coef & 0x000000FF;	
 	
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Nitrogen_Deviation & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Nitrogen_Deviation & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Nitrogen_Deviation & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Nitrogen_Deviation & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Phosphorus_Coef & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Phosphorus_Coef & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Phosphorus_Coef & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Phosphorus_Coef & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Phosphorus_Coef & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Phosphorus_Coef & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Phosphorus_Coef & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Phosphorus_Coef & 0x000000FF;	
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Phosphorus_Deviation & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Phosphorus_Deviation & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Phosphorus_Deviation & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Phosphorus_Deviation & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Potassium_Coef & 0xFF000000) >> 24 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Potassium_Coef & 0x00FF0000) >> 16 ;
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Potassium_Coef & 0x0000FF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Potassium_Coef & 0x000000FF;	
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Potassium_Coef & 0xff000000) >> 24 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Potassium_Coef & 0x00ff0000) >> 16 ;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Potassium_Coef & 0x0000FF00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Potassium_Coef & 0x000000FF;	
 		
-		HostTxBuffer[PktIdx++] = (SoilSensorData[SSArrayIdx].Potassium_Deviation & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  SoilSensorData[SSArrayIdx].Potassium_Deviation & 0x00FF;
+		HostTxBuffer[PktIdx++] = (SoilSensorData[SoilSensorIdx].Potassium_Deviation & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  SoilSensorData[SoilSensorIdx].Potassium_Deviation & 0x00ff;
 
 		CalChecksumH();	
 }
@@ -905,35 +922,37 @@ void SendHost_SoilData(void)
  ***/
 void SendHost_AirData(void)
 {
-    uint8_t PktIdx,AirSnsrArrayIdx;
-    
+    uint8_t PktIdx,AirSensorIdx;
+	
+    AirSensorIdx = HostPollingDeviceIdx-1;
+	
     HostTxBuffer[2] =  METER_RSP_AIR_DATA;	
     HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = AirSnsrArrayIdx ; 	
+    HostTxBuffer[4] = AirSensorIdx ; 	
     PktIdx = 5;		
 
-		HostTxBuffer[PktIdx++] = AirSensorError.ErrorRate[AirSnsrArrayIdx];			// Communicate rate
+		HostTxBuffer[PktIdx++] = AirSensorError.ErrorRate[AirSensorIdx];			// Communicate rate
 	
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Co2 & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Co2 & 0x00FF;
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Co2 & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Co2 & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Formaldehyde & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Formaldehyde & 0x00FF;	
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Formaldehyde & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Formaldehyde & 0x00ff;	
 	
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Tvoc & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Tvoc & 0x00FF;
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Tvoc & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Tvoc & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Pm25 & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Pm25 & 0x00FF;	
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Pm25 & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Pm25 & 0x00ff;	
 
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Pm10 & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Pm10 & 0x00FF;
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Pm10 & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Pm10 & 0x00ff;
 
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Temperature & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Temperature & 0x00FF;	
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Temperature & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Temperature & 0x00ff;	
 	
-		HostTxBuffer[PktIdx++] = (AirSensorData[AirSnsrArrayIdx].Humidity & 0xFF00) >> 8 ;
-		HostTxBuffer[PktIdx++] =  AirSensorData[AirSnsrArrayIdx].Humidity & 0x00FF;
+		HostTxBuffer[PktIdx++] = (AirSensorData[AirSensorIdx].Humidity & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  AirSensorData[AirSensorIdx].Humidity & 0x00ff;
 	
 		CalChecksumH();	
 }
@@ -943,53 +962,58 @@ void SendHost_AirData(void)
  ***/
 void SendHost_InvData(void)
 {
-    uint8_t PktIdx,InvArrayIdx;
-    InvArrayIdx = HostPollingDeviceIdx-1;
+    uint8_t PktIdx;
 	
     HostTxBuffer[2] = METER_RSP_INV_DATA ;	
-    HostTxBuffer[3] = fgToHostFlag; 	
-    HostTxBuffer[4] = InvArrayIdx ; 	
+    HostTxBuffer[3] = fgToHostFlag; 		
     PktIdx = 5;
 	
 		HostTxBuffer[PktIdx++] = InvError.ErrorRate;			// Communicate rate
-		//	Controller Data
-		HostTxBuffer[PktIdx++] = CtrlData.ConnectFlag;
-		HostTxBuffer[PktIdx++] = CtrlData.ChargingFlag;
-		HostTxBuffer[PktIdx++] = CtrlData.FaultFlag;
-		HostTxBuffer[PktIdx++] = CtrlData.WarnFlag;
-		//	Inverter Data
-		HostTxBuffer[PktIdx++] = InvData.ChargingFlag;	
-		HostTxBuffer[PktIdx++] = InvData.FaultFlag;
-		HostTxBuffer[PktIdx++] = InvData.WarnFlag;	
-		//	Bat Data
-		HostTxBuffer[PktIdx++] = BatData.Full;
-		HostTxBuffer[PktIdx++] = BatData.LoadWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.TempWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.LoadTimeoutWarnFlag;	
-		HostTxBuffer[PktIdx++] = BatData.LoadOverWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.BatHighVoltWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.BatLowVoltWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.StoreDataErrWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.StoreOpFailWarnFlag;
+		HostTxBuffer[PktIdx++] = InvData.statusByte1;
+		HostTxBuffer[PktIdx++] = InvData.statusByte3;
+		HostTxBuffer[PktIdx++] = InvData.warnByte1;		
+		HostTxBuffer[PktIdx++] = InvData.warnByte2;
+		HostTxBuffer[PktIdx++] = InvData.faultByte1;			
+		HostTxBuffer[PktIdx++] = InvData.faultByte2;
+		HostTxBuffer[PktIdx++] = InvData.faultByte3;
+
+		HostTxBuffer[PktIdx++] = (InvData.InputVolt & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.InputVolt & 0x00ff;
+		HostTxBuffer[PktIdx++] = (InvData.InputFreq & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.InputFreq & 0x00ff;		
+
+		HostTxBuffer[PktIdx++] = (InvData.OutputVolt & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.OutputVolt & 0x00ff;
+		HostTxBuffer[PktIdx++] = (InvData.OutputFreq & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.OutputFreq & 0x00ff;
 		
-		HostTxBuffer[PktIdx++] = BatData.InvFuncErrWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.PlanShutdownWarnFlag;
-		HostTxBuffer[PktIdx++] = BatData.OutputWarnFlag;	
+		HostTxBuffer[PktIdx++] = (InvData.BatVolt & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.BatVolt & 0x00ff;
+
+		HostTxBuffer[PktIdx++] = InvData.BatCapacity;		
+		HostTxBuffer[PktIdx++] = InvData.InvCurrent;
+		HostTxBuffer[PktIdx++] = InvData.LoadPercentage;			
+		HostTxBuffer[PktIdx++] = InvData.MachineTemp;
+		HostTxBuffer[PktIdx++] = InvData.MachineStatusCode;
+		HostTxBuffer[PktIdx++] = InvData.SysStatus;		
 		
-		HostTxBuffer[PktIdx++] = BatData.InvErrFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.TempOverFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.TempSensorFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.LoadTimeoutFaultFlag;		
-		HostTxBuffer[PktIdx++] = BatData.LoadErrFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.LoadOverFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.BatHighVoltFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.BatLowVoltFaultFlag;	
-		HostTxBuffer[PktIdx++] = BatData.PlanShutdownFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.OutputErrFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.ChipStartFailFaultFlag;
-		HostTxBuffer[PktIdx++] = BatData.CurrentSensorFaultFlag;
+		HostTxBuffer[PktIdx++] = (InvData.PV_volt & 0xff00) >> 8 ;
+		HostTxBuffer[PktIdx++] =  InvData.PV_volt & 0x00ff;
+		
+		HostTxBuffer[PktIdx++] = InvData.CtrlCurrent;	
+		HostTxBuffer[PktIdx++] = InvData.CtrlTemp;
+		HostTxBuffer[PktIdx++] = InvData.CtrlStatusCode;	
 		
 		CalChecksumH();			
+}
+
+void SendHost_WateringStatus(void)
+{
+    HostTxBuffer[2] = METER_RSP_WATERING_STATUS ;	
+    HostTxBuffer[3] = fgToHostFlag;
+
+		HostTxBuffer[6] = ~PE0;
+		CalChecksumH();	
 }
 
 /* Send Fw info to Center
@@ -1005,7 +1029,7 @@ void SendHost_MenterFWinfo(void)
 	// Send Meter Fw Metadata to host, then go to meterBootloader
 
 		uint8_t i;
-		HostTxBuffer[2] = CMD_MTR_OTA_UPDATE;	
+		HostTxBuffer[2] = METER_OTA_UPDATE;	
 
 		memcpy(&HostTxBuffer[4], &g_fw_ctx, sizeof(FWstatus));
     memcpy(&HostTxBuffer[20], &meta, sizeof(FWMetadata));
@@ -1086,7 +1110,7 @@ void SystemSwitchProcess(void)
 				if ( (TokenHost[4] == 0x85) && (TokenHost[5] == 0xBB) )
 
 				{
-					ReadMeterTime = TokenHost[6] ;
+					ReadDeviceCmdTime = TokenHost[6] ;
 				}
 				if ( (TokenHost[4] == 0x86) && (TokenHost[5] == 0xBB))
 

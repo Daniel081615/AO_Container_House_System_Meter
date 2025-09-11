@@ -50,6 +50,7 @@ enum DefineMODBUS_POWER_METER {
 };
 
 enum DefineMODBUS_CMD {
+	//	Power meter cmds
 	MBPMCMD_READY,			// 0x00
 	MBPMCMD_RELAY_ON,			//	0x01
 	MBPMCMD_RELAY_OFF,	//	0x02
@@ -59,9 +60,8 @@ enum DefineMODBUS_CMD {
 	MBPMCMD_SET_BAUDRATE,	
 	MBPMCMD_SET_MODE,
 
-//	MBPMCMD_SET_DOLOCK_ON,
-//	MBPMCMD_SET_DOLOCK_OFF,	
-	//	Bms modes cmd
+
+	//	Bms cmds
 	MBBMSCMD_READY = 0x10,
 	MBBMSCMD_CHARGE_ON,		//	0x11
 	MBBMSCMD_CHARGE_OFF,	//	0x12

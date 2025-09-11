@@ -69,7 +69,7 @@
 #define EE_ADDR_METER_VALUE		0x0080
 
 /*	Idx of devices 	*/
-uint8_t WtrMtrIDArray[PwrMtrMax] = {0x01};
+uint8_t WtrMtrIDArray[WtrMtrMax] = {0x01};
 uint8_t PwrMtrIDArray[PwrMtrMax] = {0x02};
 uint8_t BmsIDArray[1] = {0x03};
 
@@ -81,7 +81,6 @@ uint8_t MaxPowerMeter;
 STR_METER_D MeterData[PwrMtrMax];
 uint8_t RoomMode[PwrMtrMax];
 
-uint8_t MeterErrorRate[PwrMtrMax];
 uint16_t MeterErrorRate_Tx[PwrMtrMax];
 uint16_t MeterErrorRate_Rx[PwrMtrMax];
 
@@ -163,9 +162,7 @@ uint8_t TickPollingInterval,MeterPollingState;
 
 uint32_t 	TotalWattValue_Now;
 uint32_t NowMeterPower;
-uint32_t LastMeterPower[PwrMtrMax];
-uint16_t  TickReadPowerTime,ReadMeterTime,DelayTick;
-uint8_t PowerMeterID;
+uint16_t  TickReadDeviceTime,ReadDeviceCmdTime,DelayTick, TickUartChangeBaudrate;
 uint8_t PwrMtrNewAddr, PwrMtrNewBaudRate, PowerMeterMode, PowerMeterDO_OnOff, PowerMeterDOLock;
 
 uint8_t NewUser,NowUser,LastUser;
@@ -183,8 +180,8 @@ _Bool fgDIR485_Reader,fgDIR485_HOST_In,fgDIR485_METER_In;
 uint8_t 	DelaySwitchDIR1,Tick10mSec_DIR485_Reader,DelaySwitchDIR3;
 uint8_t RecordWp,RecordRp,RecordCounter,TickRecord,Tick_PowerCounter;
 uint8_t TickHostUart, TickMeterUart;
-_Bool 	bRecoverSystem,bResetUARTQ;
-uint8_t TickHost,SaveStep;
+_Bool 	bRecoverSystem;
+uint8_t TickHost;
 
 /********	Power Meter Types	********
   * 0x01  DAE DEM530
@@ -194,15 +191,8 @@ uint8_t TickHost,SaveStep;
   ********************/
 uint8_t MeterType;
 uint8_t DelayTime4NextCmd;
-_Bool fgSwPower,fgButton2High,PowerOnReadMeter,PowerOnTimeSync;
-uint8_t SwPowerDoubeCheck;
+_Bool fgSwPower,PowerOnReadMeter,PowerOnTimeSync;
 
-uint8_t TickModeNRelayCheck;
-uint8_t BalanceCheckTimes;
-
-uint8_t AutoLockTime;
-uint8_t RoomModeCounter;
-uint8_t tmpMemberMode[3];
 #ifdef METER_TEST 
 uint32_t MeterValueTest;
 #endif 
@@ -234,10 +224,6 @@ void UserBalanceCal(void);
 void CheckReaderData(void);
 void PowerLinkProcess(void);
 void CheckModeNRelay(void);
-
-void ExitChargeModeAll(void);
-void TagChargeRCD_AddNew(void);
-void PowerRCD_AddNew(uint8_t NowUserExit);
 
 void WriteRoomModeToEE(void);
 void SaveMeterPower2EE( void );
@@ -276,7 +262,6 @@ uint8_t Tick_LED_G,Tick_LED_G1,Tick_LED_R,Tick_LED_R1;
 uint8_t StepFineTuneUR2,UR2_FregOK;
 uint16_t Tick10mS_FTUR2,FreqMixValue;
 uint8_t RelayOffCnt;
-uint8_t tmpMemberMode[3];
 uint8_t RoomModeCheckCounter[PwrMtrMax];
 
 //	Devices 
@@ -322,10 +307,6 @@ void CheckReaderData(void);
 void PowerLinkProcess(void);
 void CheckModeNRelay(void);
 
-void ExitChargeModeAll(void);
-void TagChargeRCD_AddNew(void);
-void PowerRCD_AddNew(uint8_t NowUserExit);
-
 void ReadUserInfoFromEE(void);
 void WriteUserInfoToEE(void);
 
@@ -343,7 +324,6 @@ void UART2_Init(uint32_t u32baudrate);
 void WDT_Init(void);
 void ROOM_POWER_On(void);
 void ROOM_POWER_Off(void);
-void LEDs_Process(void);
 
 void SystemPolling(void);
 void ModbusDataProcess(void);
@@ -405,8 +385,9 @@ void SysTick_Handler(void)
     ReaderWaitTick++;
     DelayTime4NextCmd++;
     u32TimeTick2++;
-    TickReadPowerTime++;
+    TickReadDeviceTime++;
     TickPollingInterval++;
+		TickUartChangeBaudrate++;
 		
 
     if(Tick_10mSec >= 100)
@@ -521,7 +502,7 @@ void UART02_IRQHandler(void)
 											return;										
 									}								
 									break;
-							case SYSTEM_POLLING_SS:
+							case SYSTEM_POLLING_SoilSensor:
 									if (METERRxQ[0] != SoilSensorIDArray[PollingSoilSensorID-1]){
 											METERRxQ_wp=0;
 											METERRxQ_cnt=0; 
@@ -1247,14 +1228,9 @@ int main()
 	
 	/* Lock protected registers */
 	SYS_LockReg();
-    
-//#define B2400
-//#ifdef B9600
-	UART2_Init(2400);
-//#endif 
-//#ifdef B2400
-//	UART2_Init(2400);
-//#endif 
+
+	UART2_Init(9600);
+
   
 	DisableHostUartTx();
 	NVIC_EnableIRQ(UART1_IRQn);
@@ -1286,7 +1262,6 @@ int main()
 
     
     MeterErrorRate5Min_Wp = 0 ;
-    PowerMeterID = 0x01 ;	
 	
 #ifdef METER_TEST 
 	MeterValueTest = 10000 ;
@@ -1328,39 +1303,25 @@ SystemTick = 0 ;
 	DisableHostUartTx();
 	fgDIR485_Reader=0;			
 	//DIR485_READER_In();
-	//LastMeterPower[0] = TotalWattValue_Now ;
 	
 	u32TimeTick2=0;   
 	bRegister = 1 ;
 	fgToReaderFlag = 0x40 ;
-	PollingPwrMtrID = 0x01 ;
 	
 	DelayTick=0;
 	
-	MeterType = CIC_BAW2A ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
-	TickReadPowerTime = ReadMeterTime ;	
-	fgButton2High = 0 ;	
-	MeterPollingState = MP_READY;
-	//TickReadPowerTime = 0 ;
+	MeterType = CIC_BAW1A ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
+	TickReadDeviceTime = 0 ;
 	PowerOnReadMeter = 1 ;
 
 #ifdef METER_TEST 
 	MeterValueTest = 10000 ;
 #endif 
 
-	ReadMeterTime = 40 ;	 	// Reading Power Meter per 40 x 20 mSec
+		ReadDeviceCmdTime = 20 ;	 	// Reading Power Meter per 20 x 20 mSec
 
-
-		/***	@Bms, @WtrMtr & @PwrMtr test function	
-				Initialize & set device ID, BaudRate.
-		 ***/
-
-		
-//		MeterDEM_510c_Init();
-//		Bms_Init();
-//		WtrMeter_Init();
-
-InitializePollingIDs();
+		/***	@Bms, @WtrMtr & @PwrMtr & @SoilSensor & @AirSensor & @Pyranometer Initialize function	***/
+		InitializePollingIDs();
 
     do {
         //RoomData.RoomMode = RM_POWER_OFF_READY ;
@@ -1373,8 +1334,9 @@ InitializePollingIDs();
         SystemTick = 0 ;		
         ChangeRS485Direct();		
         //SaveSetting2EE();							
-        RecoverSystemMoniter();					
+        RecoverSystemMoniter();				
         CalErrorRate();
+				
     } while (1); 
 }
 
@@ -1403,28 +1365,49 @@ void CalErrorRate(void)
 	  uint8_t i,j;
 		float acmTx, acmRx;
 	
-		//	power meter error rate calculation
-    
-		acmTx = 0; acmRx = 0;
-    for (i=0;i<PwrMtrMax;i++)
-    {
-        MeterErrorRate_Tx[i] = 0 ;
-        MeterErrorRate_Rx[i] = 0 ;
-        for ( j=0;j<12;j++)
-        {
-            MeterErrorRate_Tx[i] += MeterErrorRate5Min_Tx[i][j];
-            MeterErrorRate_Rx[i] += MeterErrorRate5Min_Rx[i][j];
-        }
-        tmpTx = (float) MeterErrorRate_Tx[i];
-        tmpRx = (float) MeterErrorRate_Rx[i];
-        fErrorRate = tmpRx/tmpTx;
-        MeterErrorRate[i] = (uint8_t) (fErrorRate*100);
-				acmTx += (float)tmpTx;
-				acmRx += (float)tmpRx;				
+//		//	power meter error rate calculation
+//    
+//		acmTx = 0; acmRx = 0;
+//    for (i=0;i<PwrMtrMax;i++)
+//    {
+//        MeterErrorRate_Tx[i] = 0 ;
+//        MeterErrorRate_Rx[i] = 0 ;
+//        for ( j=0;j<12;j++)
+//        {
+//            MeterErrorRate_Tx[i] += MeterErrorRate5Min_Tx[i][j];
+//            MeterErrorRate_Rx[i] += MeterErrorRate5Min_Rx[i][j];
+//        }
+//        tmpTx = (float) MeterErrorRate_Tx[i];
+//        tmpRx = (float) MeterErrorRate_Rx[i];
+//        fErrorRate = tmpRx/tmpTx;
+//        MeterErrorRate[i] = (uint8_t) (fErrorRate*100);
+//				acmTx += (float)tmpTx;
+//				acmRx += (float)tmpRx;				
+//		}
+//		fErrorRate = acmRx/acmTx;
+//		TotErrorRate.PowerMeter = (uint8_t) (fErrorRate*100);
+		//	Bms error rate calculation
+		
+		acmTx = 0;	acmRx = 0;
+		for (uint8_t i = 0; i < PwrMtrMax; i++ )
+		{		
+				if ((PwrMtrError.Fail[i] + PwrMtrError.Success[i]) > 0)
+				{
+						tmpTx = (float)(PwrMtrError.Fail[i] + PwrMtrError.Success[i]);
+						tmpRx = (float)PwrMtrError.Success[i];
+						fErrorRate = tmpRx/tmpTx;
+						PwrMtrError.ErrorRate[i] = (uint8_t) (fErrorRate*100);
+				} else {
+						tmpTx = 0;
+						tmpRx = 0;
+						PwrMtrError.ErrorRate[i] = 0;
+				}
+				acmTx += tmpTx;
+				acmRx += tmpRx;
 		}
 		fErrorRate = acmRx/acmTx;
-		TotErrorRate.PowerMeter = (uint8_t) (fErrorRate*100);
-	
+		TotErrorRate.PowerMeter = (uint8_t) (fErrorRate*100);	
+		
 		//	Bms error rate calculation
 		acmTx = 0;	acmRx = 0;
 		for (uint8_t i = 0; i < BmsMax; i++ )
@@ -1541,12 +1524,14 @@ void CalErrorRate(void)
 				tmpRx = (float)InvError.Success;
 				fErrorRate = tmpRx/tmpTx;
 				InvError.ErrorRate = (uint8_t) (fErrorRate*100);
+				TotErrorRate.Inverter = (uint8_t) (fErrorRate*100);
 		} else {
 				tmpTx = 0;
 				tmpRx = 0;
 				InvError.ErrorRate = 0;
+				TotErrorRate.Inverter = InvError.ErrorRate;
 		}
-		TotErrorRate.Inverter = (uint8_t) (fErrorRate*100);
+		
 }
 
 
@@ -1713,9 +1698,9 @@ void SaveMeterPower2EE(void)
 {	
 	uint8_t	tmpValue; 	
 	
-	tmpValue = (uint8_t) (TotalWattValue_Now & 0xFF000000) >> 24 ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0xff000000) >> 24 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE, tmpValue);	
-	tmpValue = (uint8_t) (TotalWattValue_Now & 0x00FF0000) >> 16 ;
+	tmpValue = (uint8_t) (TotalWattValue_Now & 0x00ff0000) >> 16 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+1, tmpValue);
 	tmpValue = (uint8_t) (TotalWattValue_Now & 0x0000FF00) >> 8 ;
 	soft_i2c_eeprom_write_byte(EEPROM_ADDR, EE_ADDR_METER_VALUE+2, tmpValue);
@@ -1804,122 +1789,145 @@ void ROOM_POWER_Off(void)
  ***/
 void SystemPolling(void)
 {
-	
-		switch (SystemPollingState)
-    {
-				case SYSTEM_POLLING_READY:
-						SystemPollingState =  SYSTEM_POLLING_METER;
-						break;
-					
-        case SYSTEM_POLLING_METER:
-		
-						if ( PollingPwrMtrID > MaxPowerMeter ){
-								PollingPwrMtrID = 1;
-								MeterPollingFinishedFlag = TRUE;
-						}
-						
-            if (!MeterPollingFinishedFlag) {
-								MeterPolling();
-            } else {
-								MeterPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_WM;
-						}
-            break;		
+		if (TickUartChangeBaudrate > 40)
+		{
+				switch (SystemPollingState)
+				{
+						case SYSTEM_POLLING_READY:
+								SystemPollingState = SYSTEM_POLLING_METER;
+								break;
 
-				case SYSTEM_POLLING_WM:
-            	
-						if ( PollingWtrMtrID > WtrMtrMax )
-						{
-								PollingWtrMtrID = 1 ;
-								WMPollingFinishedFlag = TRUE;
-						}
+						case SYSTEM_POLLING_METER:
+								if (PollingPwrMtrID > MaxPowerMeter)
+								{
+										PollingPwrMtrID = 1;
+										MeterPollingFinishedFlag = TRUE;
+								}
 
-            if (!WMPollingFinishedFlag) {
-								WMPolling();
-            } else {
-								WMPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_PYR;
-						}
-            break;
-						
-				case SYSTEM_POLLING_PYR:
-					
-						if ( PollingPyrMtrID > PyrMtrMax )
-						{
-								PollingPyrMtrID = 1 ;
-								PyrPollingFinishedFlag = TRUE;
-						}
+								if (!MeterPollingFinishedFlag)
+								{
+										MeterPolling();
+								}
+								else
+								{
+										MeterPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_WM;
+								}
+								break;
 
-            if (!PyrPollingFinishedFlag) {
-								PyranometerPolling();
-            } else {
-								PyrPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_SS;
-						}
-            break;	
+						case SYSTEM_POLLING_WM:
+								if (PollingWtrMtrID > WtrMtrMax)
+								{
+										PollingWtrMtrID = 1;
+										WMPollingFinishedFlag = TRUE;
+								}
 
-				case SYSTEM_POLLING_SS:
-					
-						if ( PollingSoilSensorID > SoilSensorMax )
-						{
-								PollingSoilSensorID = 1 ;
-								SoilSensorPollingFinishedFlag = TRUE;
-						}
+								if (!WMPollingFinishedFlag)
+								{
+										WMPolling();
+								}
+								else
+								{
+										WMPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_AirSensor;
+								}
+								break;
 
-            if (!SoilSensorPollingFinishedFlag) {
-								SoilSensorPolling();
-            } else {
-								UART2_Init(2400);
-								SoilSensorPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_INV;
-						}
-            break;							
-						
-				case SYSTEM_POLLING_INV:
-					
-            if (!INVPollingFinishedFlag) {
-								INVPolling();
-            } else {
-								INVPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_AirSensor;
-						}
-            break;
+						case SYSTEM_POLLING_AirSensor:
+								if (PollingAirSensorID > AirSensorMax)
+								{
+										PollingAirSensorID = 1;
+										AirSensorPollingFinishedFlag = TRUE;
+								}
 
-        case SYSTEM_POLLING_AirSensor:
-						if (PollingAirSensorID > AirSensorMax){
-								PollingAirSensorID = 0x01;
-								AirSensorPollingFinishedFlag = TRUE;
-						}					
+								if (!AirSensorPollingFinishedFlag)
+								{
+										AirSensorPolling();
+								}
+								else
+								{
+										UART2_Init(2400);
+										TickUartChangeBaudrate = 0;
+										AirSensorPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_PYR;
+								}
+								break;
+								
+						case SYSTEM_POLLING_PYR:
+								if (PollingPyrMtrID > PyrMtrMax)
+								{
+										PollingPyrMtrID = 1;
+										PyrPollingFinishedFlag = TRUE;
+								}
 
-            if (!AirSensorPollingFinishedFlag) {
-								AirSensorPolling();
-            } else {
-								UART2_Init(115200);
-								AirSensorPollingFinishedFlag = FALSE;
-								SystemPollingState = SYSTEM_POLLING_BMS;
-						}
-            break;
+								if (!PyrPollingFinishedFlag)
+								{
+										PyranometerPolling();
+								}
+								else
+								{
+										PyrPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_SoilSensor;
+								}
+								break;								
+						case SYSTEM_POLLING_SoilSensor:
+								if (PollingSoilSensorID > SoilSensorMax)
+								{
+										PollingSoilSensorID = 1;
+										SoilSensorPollingFinishedFlag = TRUE;
+								}
 
-        case SYSTEM_POLLING_BMS:
-						//	Baud: 115200 bmp
-						if (PollingBmsID > BmsMax){
-								PollingBmsID = 1 ;
-								BmsPollingFinishedFlag = TRUE;
-						}					
+								if (!SoilSensorPollingFinishedFlag)
+								{
+										SoilSensorPolling();
+								}
+								else
+								{
+										SoilSensorPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_INV;
+								}
+								break;
 
-            if (!BmsPollingFinishedFlag) {
-								BmsPolling();
-            } else {
-								UART2_Init(9600);
-								BmsPollingFinishedFlag = FALSE;
+						case SYSTEM_POLLING_INV:
+								if (!INVPollingFinishedFlag)
+								{
+										INVPolling();
+								}
+								else
+								{
+										UART2_Init(115200);
+										TickUartChangeBaudrate = 0;
+										INVPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_BMS;
+								}
+								break;
+
+						case SYSTEM_POLLING_BMS:
+								if (PollingBmsID > BmsMax)
+								{
+										PollingBmsID = 1;
+										BmsPollingFinishedFlag = TRUE;
+								}
+
+								if (!BmsPollingFinishedFlag)
+								{
+										BmsPolling();
+								}
+								else
+								{
+										UART2_Init(9600);
+										TickUartChangeBaudrate = 0;
+										BmsPollingFinishedFlag = FALSE;
+										SystemPollingState = SYSTEM_POLLING_READY;
+								}
+								break;
+
+						default: // 處理所有未匹配到的情況
 								SystemPollingState = SYSTEM_POLLING_READY;
-						}
-            break;
+								break;
+				}
+		}
 
-        default:
-            SystemPollingState = SYSTEM_POLLING_READY;
-            break;
-    }
 }
 
 /***
@@ -1951,7 +1959,7 @@ void ModbusDataProcess(void)
 								WMDataProcess();
 						} else if (SystemPollingState == SYSTEM_POLLING_PYR) {
 								PyrDataProcess();
-						} else if (SystemPollingState == SYSTEM_POLLING_SS) {
+						} else if (SystemPollingState == SYSTEM_POLLING_SoilSensor) {
 								SoilSensorDataProcess();
 						} else if (SystemPollingState == SYSTEM_POLLING_AirSensor) {
 								AirSensorDataProcess();
@@ -1980,7 +1988,7 @@ void InitializePollingIDs(void)
 {
 		//Setup PowerMeter Device
 		PollingPwrMtrID = 0x01;
-		PowerMeterNG = 0xFFFFFFFF;
+		PwrMtrError.PwrMtrDeviceNG = 0xFFFFFFFF;
 		
 		//Setup WaterMeter Device 
 		PollingWtrMtrID = 0x01;

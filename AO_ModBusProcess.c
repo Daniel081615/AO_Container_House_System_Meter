@@ -82,7 +82,7 @@ void CmdModBus_DEM5x0(uint8_t ModBusCmd);
 void CmdModBus_BAW2A(uint8_t ModBusCmd);
 void CmdModBus_E21nE31(uint8_t ModBusCmd);
 void CmdModBus_DEM_510c(uint8_t ModBusCmd);
-void CmdModBus_CIC_BAW1A(uint8_t ModBusCmd);
+void CmdModBus_BAW1A(uint8_t ModBusCmd);
 
 void DigitMeterPowerON(void);
 void DigitMeterPowerOFF(void);
@@ -128,10 +128,11 @@ void MODBUS_SendCmd(uint8_t cmd)
 {
 	
 		//DIR485_METER_Out() ;
-		PowerMeterID = PollingPwrMtrID-1 ;
-		MeterTxBuffer[0]=  PwrMtrIDArray[PowerMeterID];
+		uint8_t PwrMtrDeviceIdx;
+		PwrMtrDeviceIdx = PollingPwrMtrID-1 ;
+		MeterTxBuffer[0]=  PwrMtrIDArray[PwrMtrDeviceIdx];
 		GotDeviceRsp = 0xFF ;
-		MeterErrorRate5Min_Tx[PowerMeterID][MeterErrorRate5Min_Wp]++; 
+		MeterErrorRate5Min_Tx[PwrMtrDeviceIdx][MeterErrorRate5Min_Wp]++; 
 	
 		switch ( MeterType )
 		{
@@ -146,6 +147,9 @@ void MODBUS_SendCmd(uint8_t cmd)
 				break;
 			case DEM_510c:
 				CmdModBus_DEM_510c(cmd);
+				break;
+			case CIC_BAW1A:
+				CmdModBus_BAW1A(cmd);
 				break;
 		}	    
 }
@@ -889,7 +893,7 @@ void CmdModBus_DEM_510c(uint8_t ModBusCmd)
 	}
 }
 
-void CmdModBus_CIC_BAW1A(uint8_t ModBusCmd)
+void CmdModBus_BAW1A(uint8_t ModBusCmd)
 {
 	switch ( ModBusCmd )
 	{		
@@ -928,11 +932,14 @@ void CmdModBus_CIC_BAW1A(uint8_t ModBusCmd)
 			MeterTxBuffer[2]=0x00;
 			MeterTxBuffer[3]=0x49;          // Read start addr
 			MeterTxBuffer[4]=0x00;
-			MeterTxBuffer[5]=0x00;          // Read Register number
-			CRC16(MeterTxBuffer,6);
-			MeterTxBuffer[6]=uchCRCHi;      // // CRC Checksum 
-			MeterTxBuffer[7]=uchCRCLo;      // // CRC Checksum 
-			_SendStringToMETER(MeterTxBuffer,8);  
+			MeterTxBuffer[5]=0x01;
+			MeterTxBuffer[6]=0x02;    		
+			MeterTxBuffer[7]=0x00;
+			MeterTxBuffer[8]=0x00;          // Read Register number
+			CRC16(MeterTxBuffer,9);
+			MeterTxBuffer[9]=uchCRCHi;      // // CRC Checksum 
+			MeterTxBuffer[10]=uchCRCLo;      // // CRC Checksum 
+			_SendStringToMETER(MeterTxBuffer,11);  
 			break;		
 		
 		case MDBS_METER_GET_BAL :
@@ -1111,6 +1118,25 @@ void CmdModBus_CIC_BAW1A(uint8_t ModBusCmd)
 			MeterTxBuffer[10]=uchCRCLo;      // // CRC Checksum 
 			_SendStringToMETER(MeterTxBuffer,11);   			
 			break;
+
+		case MDBS_METER_SET_PWD:
+			MeterMBCmd = MDBS_METER_SET_PWD ;
+			MeterTxBuffer[1]=0x16;          // Function 
+			MeterTxBuffer[2]=0x08;
+			MeterTxBuffer[3]=0x08;          // Write start addr
+			MeterTxBuffer[4]=0x00;
+			MeterTxBuffer[5]=0x02;          // Write Register number
+			MeterTxBuffer[6]=0x04;
+			MeterTxBuffer[7]=0x1D;
+			MeterTxBuffer[8]=0x2C;          // Write Data		
+			MeterTxBuffer[9]=0x3B;          // Write Register number
+			MeterTxBuffer[10]=0x4A;
+			CRC16(MeterTxBuffer,11);
+			MeterTxBuffer[11]=uchCRCHi;      // // CRC Checksum 
+			MeterTxBuffer[12]=uchCRCLo;      // // CRC Checksum 
+			_SendStringToMETER(MeterTxBuffer,13);
+			break;		
+
 	}		
 }
 
@@ -1167,7 +1193,7 @@ int ScanAndSetMeter(int baudrate)
         if (TokenMeterReady != 0x00)
         {			
 						TokenMeterReady = 0x00;
-						PowerMeterNG &= (~(0x00000001 <<  (PollingPwrMtrID-1) ) );
+						PwrMtrError.PwrMtrDeviceNG &= (~(0x00000001 <<  (PollingPwrMtrID-1) ) );
 						//	Set power meter baud rate 2400 bps 
 						PwrMtrNewBaudRate = 0x01;
 						MODBUS_SendCmd(MDBS_METER_SET_BAUDRATE);

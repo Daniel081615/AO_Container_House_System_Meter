@@ -14,7 +14,7 @@ extern uint8_t 	PollingAirSensorID;
 enum DefineAirSensorPollingState{
 		AS_POLLING_READY,
 		AS_POLLING_RSP,
-		AS_POLLING_CMD
+		AS_POLLING_CMD,
 };
 
 

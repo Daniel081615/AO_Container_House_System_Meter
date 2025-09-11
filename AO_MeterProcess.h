@@ -14,7 +14,13 @@
 //enum DefineHostCommandType {       
 //};
 
-extern void MeterDataProcess(void);
+typedef struct {
+	uint32_t PwrMtrDeviceNG;
+	uint8_t Success[PwrMtrMax];
+	uint8_t Fail[PwrMtrMax];
+	uint8_t ErrorRate[PwrMtrMax];
+} PwrMtrError_t;
 
+extern void MeterDataProcess(void);
 
 #endif

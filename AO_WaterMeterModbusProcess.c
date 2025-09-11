@@ -59,7 +59,7 @@ uint8_t WMReadErrorCnt;
 uint8_t u8tempStatus;
 uint8_t tries;
 
-uint32_t u32tempStatus;
+
 _Bool WMPollingFinishedFlag;
 
 /***	init Setup Cmd	
@@ -72,9 +72,9 @@ void WMPolling(void)
 		{	
 			
 				case	WM_POLLING_READY:
-						if (TickReadPowerTime >= ReadMeterTime)
+						if (TickReadDeviceTime >= ReadDeviceCmdTime)
             {
-								TickReadPowerTime = 0 ;
+								TickReadDeviceTime = 0 ;
 								WMPollingState = WM_POLLING_WATER_CONSUMPTION_CMD + WMPollingStateIndex;
 								
 								if (WMPollingState > WM_POLLING_VALVE_STATUS_CMD)
@@ -136,26 +136,27 @@ void WMPolling(void)
 				case	MBCMD_SET_WM_ADDR_AND_BAUDRATE:
 						WMSetDeviceID = 0x01;		//#	When needed to set
 						MODBUS_SendWMCmd(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
-						WMPollingState = WM_POLLING_RSP;
-						TickPollingInterval = 0;
+						WMPollingState = WM_POLLING_READY;
 						break;
 				
 				case	MBCMD_SET_WM_VALVE_OnOff:
 						MODBUS_SendWMCmd(MDBS_SET_VALVE_OnOff);
-						WMPollingState = WM_POLLING_RSP;
-						TickPollingInterval = 0;
+						WMPollingState = WM_POLLING_READY;
 						break;				
 		}
 }
 
 void WMDataProcess(void)
 {
-		uint8_t WtrMtrArrayIdx;
+		uint8_t WtrMtrIdx;
 		//	Read Valve, register ststus respond function code
 		if (GotDeviceRsp != WtrMtrIDArray[PollingWtrMtrID-1]) 
 				return;
+		
+		uint32_t u32tmp, u32Lasttmp;
+		uint8_t GapTimes[WtrMtrMax];
 	
-		WtrMtrArrayIdx = PollingWtrMtrID -1;
+		WtrMtrIdx = PollingWtrMtrID -1;
 	
 		switch(WMMBCMD)
 		{
@@ -167,12 +168,31 @@ void WMDataProcess(void)
 						} else if (u8tempStatus == 0x00){
 								VlaveOnOff = 0x00;
 						}
-						WMData[WtrMtrArrayIdx].ValveState = VlaveOnOff;
+						WMData[WtrMtrIdx].ValveState = VlaveOnOff;
 						break;
 						
 				case MDBS_GET_TOTAL_WATER_CONSUMPTION:
-						u32tempStatus = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 8) + (TokenMeter[6]);
-						WMData[WtrMtrArrayIdx].TotalVolume = u32tempStatus;
+						u32tmp = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 8) + (TokenMeter[6]);
+						u32Lasttmp =  WMData[WtrMtrIdx].TotalVolume;
+							
+						if (u32tmp >= u32Lasttmp)
+						{
+								if ((u32tmp - u32Lasttmp) < 200){
+										WMData[WtrMtrIdx].TotalVolume = u32tmp;
+								} else {
+										GapTimes[WtrMtrIdx]++;
+										if (GapTimes[WtrMtrIdx] > 3){
+												WMData[WtrMtrIdx].TotalVolume = u32tmp;
+												GapTimes[WtrMtrIdx] = 0;
+										}
+								}						
+						} else {
+								GapTimes[WtrMtrIdx]++;
+								if (GapTimes[WtrMtrIdx] > 3){
+										WMData[WtrMtrIdx].TotalVolume = u32tmp;
+										GapTimes[WtrMtrIdx] = 0;
+								}							
+						}
 
 						break;
 						
@@ -261,10 +281,10 @@ void CmdModbus_WM(uint8_t ModbusCmd)
  ***/
 void WMSuccess(void)
 {
-		uint8_t WtrMtrArrayIdx = PollingWtrMtrID -1;
+		uint8_t WtrMtrIdx = PollingWtrMtrID -1;
 
-		WtrMtrError.Success[WtrMtrArrayIdx] += 1;
-		WtrMtrError.WMDeviceNG &= (~(0x00000001 << (WtrMtrArrayIdx)));
+		WtrMtrError.Success[WtrMtrIdx] += 1;
+		WtrMtrError.WMDeviceNG &= (~(0x00000001 << (WtrMtrIdx)));
 		//	Move to next BMSpollingstate
     WMPollingStateIndex++;
 		WMPollingState = WM_POLLING_READY;			
@@ -272,17 +292,17 @@ void WMSuccess(void)
 
 void WMTimeoutProcess(void)
 {
-		uint8_t WtrMtrArrayIdx = PollingWtrMtrID -1;
+		uint8_t WtrMtrIdx = PollingWtrMtrID -1;
 	
     if ( TickPollingInterval > POLL_TIMEOUT )
     {							
         WMReadErrorCnt++;
 				//	Error report system    
-				WtrMtrError.Fail[WtrMtrArrayIdx] += 1;
+				WtrMtrError.Fail[WtrMtrIdx] += 1;
 				WMPollingState = WM_POLLING_READY;
         if( WMReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
-						WtrMtrError.WMDeviceNG |= (0x00000001 << (WtrMtrArrayIdx));
+						WtrMtrError.WMDeviceNG |= (0x00000001 << (WtrMtrIdx));
             WMPollingStateIndex++;
             WMReadErrorCnt = 0 ;            
             ResetMeterUART();

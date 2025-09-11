@@ -35,55 +35,36 @@ typedef struct {
 } InvError_t;
 
 typedef struct {
+	uint8_t statusByte1;
+	uint8_t statusByte3;
+	uint8_t warnByte1;
+	uint8_t warnByte2;
+	uint8_t faultByte1;
+	uint8_t faultByte2;
+	uint8_t faultByte3;
+
+	uint16_t InputVolt;
+	uint16_t InputFreq;
+	uint16_t OutputVolt;
+	uint16_t OutputFreq;
 	
-	_Bool ChargingFlag;	// 0: not charging, 1: charging
-	_Bool FaultFlag;		// 0: no,	1: yes
-	_Bool WarnFlag;			// 0: No, 1: Yes
+	uint16_t BatVolt;
+	uint8_t BatCapacity;
+	uint8_t InvCurrent;
+	uint8_t LoadPercentage;
+	uint8_t MachineTemp;
+	uint8_t MachineStatusCode;
+	uint8_t SysStatus;
+	
+	uint16_t PV_volt;
+	uint8_t CtrlCurrent;
+	uint8_t CtrlTemp;
+	uint8_t CtrlStatusCode;
+	
 } InvData_t;
-
-typedef struct {
-	
-	_Bool ConnectFlag;	// 0:	disconnect, 	1: connected
-	_Bool ChargingFlag;	// 0: not charging, 1: charging
-	_Bool FaultFlag;		// 0: no,	1: yes
-	_Bool WarnFlag;	// 0: No, 1: Yes
-} CtlrData_t;
-
-typedef struct {
-	_Bool Full;		// 0: not full,		1: full
-	
-	_Bool LoadWarnFlag;
-	_Bool TempWarnFlag;
-	_Bool LoadTimeoutWarnFlag;
-	_Bool LoadOverWarnFlag;
-	_Bool BatHighVoltWarnFlag;
-	_Bool BatLowVoltWarnFlag;
-	_Bool StoreDataErrWarnFlag;
-	_Bool StoreOpFailWarnFlag;
-	
-	_Bool InvFuncErrWarnFlag;
-	_Bool PlanShutdownWarnFlag;
-	_Bool OutputWarnFlag;
-	
-	_Bool InvErrFaultFlag;
-	_Bool TempOverFaultFlag;
-	_Bool TempSensorFaultFlag;
-	_Bool LoadTimeoutFaultFlag;
-	_Bool LoadErrFaultFlag;
-	_Bool LoadOverFaultFlag;
-	_Bool BatHighVoltFaultFlag;
-	_Bool BatLowVoltFaultFlag;
-	_Bool PlanShutdownFaultFlag;
-	_Bool OutputErrFaultFlag;
-	_Bool ChipStartFailFaultFlag;
-	_Bool CurrentSensorFaultFlag;
-
-} BatData_t;
 
 
 extern InvError_t InvError;
 extern InvData_t	InvData;
-extern BatData_t	BatData;
-extern CtlrData_t CtrlData;
 
 #endif

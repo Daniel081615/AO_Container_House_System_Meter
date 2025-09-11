@@ -36,9 +36,9 @@ void PyranometerPolling(void)
 		switch(PyrPollingState)	
 		{
 				case	PYR_POLLING_READY:
-						if (TickReadPowerTime >= ReadMeterTime)
+						if (TickReadDeviceTime >= ReadDeviceCmdTime)
 						{
-								TickReadPowerTime = 0 ;	
+								TickReadDeviceTime = 0 ;	
 								PyrPollingState = PYR_GET_SOLAR_RADIATION + PyrPollingStateIndex;
 								
 								if (PyrPollingState > PYR_GET_DEVIATION_VALUE)
@@ -63,13 +63,11 @@ void PyranometerPolling(void)
 											break;
 										
 										case MBPYRCMD_SET_DEVICE_ADDRESS :
-												//PyrNewAddr = 
 												PyrPollingState = PYR_SET_DEVICE_ADDRESS;
 												PyrMtrModbusCmd = MBPYRCMD_READY;												
 											break;
 										
-										case MBPYRCMD_SET_BAUD_RATE :
-												//PyrNewBaudRate = 
+										case MBPYRCMD_SET_BAUD_RATE : 
 												PyrPollingState = PYR_SET_BAUD_RATE;
 												PyrMtrModbusCmd = MBPYRCMD_READY;
 											break;

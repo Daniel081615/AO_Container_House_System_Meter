@@ -31,7 +31,6 @@ uint8_t PollingStateIndex;
 uint8_t PollingPwrMtrID;
 
 uint16_t Tick1S_ErrorRateGap;
-uint32_t PowerMeterNG;
 
 uint8_t  MeterErrorRate5Min_Wp;
 uint16_t MeterErrorRate5Min_Tx[PwrMtrMax][12];
@@ -41,8 +40,9 @@ _Bool MeterPollingFinishedFlag;
 
 uint8_t u8MeterInitState, PwrMtrMBCmd;
 uint16_t Tick10mSec_PowerMeterInit;
+PwrMtrError_t PwrMtrError;
 
-//uint16_t TickReadPowerTime;
+//uint16_t TickReadDeviceTime;
 
 
 /***
@@ -57,79 +57,62 @@ void MeterPolling(void)
     {
         case MP_READY :
 
-            if (TickReadPowerTime >= ReadMeterTime)
+            if (TickReadDeviceTime >= ReadDeviceCmdTime)
             {
-                TickReadPowerTime = 0 ;
+                TickReadDeviceTime = 0 ;
                 MeterPollingState = MP_POLLING_W_CMD + PollingStateIndex ;
-								/***
-								 *	@brief	For ESG Condition, only poll two values of PowerMeter *DEM510c, @TotalWatt, @RelayStatus
-								 ***/
-                if ( MeterPollingState > MP_POLLING_MODE_CMD )
+                if ( MeterPollingState > MP_POLLING_PF_CMD )
                 {
                     MeterPollingState = MP_POLLING_W_CMD ;
                     PollingStateIndex = 0 ;
                     PollingPwrMtrID++;
                 }
-                PowerMeterID = PollingPwrMtrID ;
             } else {
                 // Commands 
                 PwrMtrMBCmd = PwrMtrCmdList[PollingPwrMtrID-1] ;
                 PwrMtrCmdList[PollingPwrMtrID-1] = MBPMCMD_READY ;
-                PowerMeterID = PollingPwrMtrID ;
                 switch ( PwrMtrMBCmd )	
                 {
                     case MBPMCMD_READY :
                         break;
                     case MBPMCMD_RELAY_ON :
                         MtrRelayOnOff = 1 ;
-                        MeterPollingState = MP_SET_RELAY ;
+                        MeterPollingState = MP_SET_RELAY1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_RELAY_OFF :										
                         MtrRelayOnOff = 0 ;
-                        MeterPollingState = MP_SET_RELAY ;
+                        MeterPollingState = MP_SET_RELAY1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_ADD_VALUE :
-                        MeterPollingState = MP_ADD_VALUE ;
+                        MeterPollingState = MP_ADD_VALUE1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_EXIT_TEST :										
-                        MeterPollingState = MP_EXIT_TEST ;
+                        MeterPollingState = MP_EXIT_TEST1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_SET_ADDR :										
-                        MeterPollingState = MP_SET_ADDR ;
+                        MeterPollingState = MP_SET_ADDR1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_SET_BAUDRATE :
-                        MeterPollingState = MP_SET_BAUDRATE ;
+                        MeterPollingState = MP_SET_BAUDRATE1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
                     case MBPMCMD_SET_MODE :										
-                        MeterPollingState = MP_SET_MODE ;
+                        MeterPollingState = MP_SET_MODE1 ;
                         PwrMtrMBCmd = MBPMCMD_READY;
                         break;
-
-//										case MBPMCMD_SET_ADDR:
-//												MeterPollingState = MP_SET_ADDR ;
-//                        PwrMtrMBCmd = MBPMCMD_READY;
-//												break;
-//										case MBPMCMD_SET_DOLOCK_ON:
-//												MeterPollingState = MP_SET_DO_LOCK_ON ;
-//                        PwrMtrMBCmd = MBPMCMD_READY;
-//												break;
-//										case MBPMCMD_SET_DOLOCK_OFF:
-//												MeterPollingState = MP_SET_DO_LOCK_OFF ;
-//                        PwrMtrMBCmd = MBPMCMD_READY;
-												break;										
+								
                     default :
                         break;
                 }
             }
             break;
         case MP_POLLING_RSP :
-            if (GotDeviceRsp == PwrMtrIDArray[PowerMeterID-1])
+            if (GotDeviceRsp == PwrMtrIDArray[PollingPwrMtrID-1])
             {
                 MeterSuccess();
             } else {
@@ -181,66 +164,92 @@ void MeterPolling(void)
             MeterPollingState = MP_POLLING_RSP ; 
             TickPollingInterval = 0 ;			
             break;
-				case MP_POLLING_MODE_CMD :	
-            MODBUS_SendCmd(MDBS_METER_GET_MODE);
-            MeterPollingState = MP_POLLING_RSP ; 
-            TickPollingInterval = 0 ;			
-            break;
+				
 				//	Cmds
-				case MP_SET_RELAY :
+        case MP_SET_RELAY1 :
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_SET_RELAY2;
+            DelayTime4NextCmd = 0 ;					
+            break;
+        case MP_SET_RELAY2 :			
+            if ( DelayTime4NextCmd > 40 ) 
+            {
+            DelayTime4NextCmd = 0 ;							
             MODBUS_SendCmd(MDBS_METER_SET_RELAY);
             MeterPollingState = MP_READY ;
+            }
+            break;	
+				
+        case MP_ADD_VALUE1 :						
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_ADD_VALUE2;
+            DelayTime4NextCmd = 0 ;						
             break;
-				case MP_ADD_VALUE :	
-            MODBUS_SendCmd(MDBS_METER_ADD_VALUE);
-            MeterPollingState = MP_POLLING_RSP ; 
-            TickPollingInterval = 0 ;			
+        case MP_ADD_VALUE2 :			
+            if ( DelayTime4NextCmd > 30 ) 
+            {
+                DelayTime4NextCmd = 0 ;				
+                MODBUS_SendCmd(MDBS_METER_ADD_VALUE);
+                MeterPollingState = MP_READY ;				
+            }
+            break;		
+
+        case MP_EXIT_TEST1 :						
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_EXIT_TEST2;
+            DelayTime4NextCmd = 0 ;						
             break;
-				case MP_EXIT_TEST :	
-            MODBUS_SendCmd(MDBS_METER_EXIT_TEST);
-            MeterPollingState = MP_POLLING_RSP ; 
-            TickPollingInterval = 0 ;			
+        case MP_EXIT_TEST2 :			
+            if ( DelayTime4NextCmd > 30 ) 
+            {
+                DelayTime4NextCmd = 0 ;																	
+                MODBUS_SendCmd(MDBS_METER_EXIT_TEST);
+                MeterPollingState = MP_READY ;				
+            }
+
+				case MP_SET_MODE1 :
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_SET_MODE2;
+						DelayTime4NextCmd = 0 ;	
+						break;				
+				case MP_SET_MODE2 :
+						if ( DelayTime4NextCmd > 50 ) 
+            {
+								MODBUS_SendCmd(MDBS_METER_SET_MODE);
+								MeterPollingState = MP_READY ;
+						}
+						break;
+				
+				case MP_SET_ADDR1 :
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_SET_ADDR2;
+						DelayTime4NextCmd = 0 ;	
+						break;					
+				case MP_SET_ADDR2 :	
+						if ( DelayTime4NextCmd > 50 ) 
+            {
+								MODBUS_SendCmd(MDBS_METER_SET_ADDR);
+								MeterPollingState = MP_READY ;
+						}
             break;
-				case MP_SET_MODE :
-            MODBUS_SendCmd(MDBS_METER_SET_MODE);
-            MeterPollingState = MP_READY ;
+				
+				case MP_SET_BAUDRATE1 :
+            MODBUS_SendCmd(MDBS_METER_SET_PWD);
+            MeterPollingState = MP_SET_BAUDRATE2;
+						DelayTime4NextCmd = 0 ;	
+						break;					
+				case MP_SET_BAUDRATE2 :	
+						if ( DelayTime4NextCmd > 50 ) 
+            {
+								MODBUS_SendCmd(MDBS_METER_SET_BAUDRATE);
+								MeterPollingState = MP_READY ;
+						}
             break;
-				case MP_SET_ADDR :	
-            MODBUS_SendCmd(MDBS_METER_SET_ADDR);
-            MeterPollingState = MP_READY ;
-            break;
-				case MP_SET_BAUDRATE :	
-            MODBUS_SendCmd(MDBS_METER_SET_BAUDRATE);
-            MeterPollingState = MP_READY ;
-            break;
+							
+				
         default :
             MeterPollingState = MP_READY ;
             break;	
-
-//        case MP_SET_DO_ON :
-//						//	DO on
-//						PowerMeterDO_OnOff = 1;
-//            MODBUS_SendCmd(MDBS_METER_SET_DO);
-//            MeterPollingState = MP_READY ;
-//            break;				
-//        case MP_SET_DO_OFF :
-//						//	DO off
-//						PowerMeterDO_OnOff = 0;
-//            MODBUS_SendCmd(MDBS_METER_SET_DO);
-//            MeterPollingState = MP_READY ;
-//            break;
-//        case MP_SET_DO_LOCK_ON :
-//						//	DO on
-//						PowerMeterDOLock = 1;
-//            MODBUS_SendCmd(MDBS_METER_SET_DO_LOCK);
-//            MeterPollingState = MP_READY ;
-//            break;				
-//        case MP_SET_DO_LOCK_OFF :
-//						//	DO off
-//						PowerMeterDOLock = 0;
-//            MODBUS_SendCmd(MDBS_METER_SET_DO_LOCK);
-//            MeterPollingState = MP_READY ;
-//            break;	
 
     }
 }
@@ -276,7 +285,7 @@ void MeterDataProcess(void)
 								u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;
 								break;
 							case CIC_BAW1A:
-								u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;								
+								u32temp = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 24) + TokenMeter[6] ;								
 								break;
 							default :
 								u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;
@@ -284,12 +293,11 @@ void MeterDataProcess(void)
 						}
 						
 						TotalWattValue_Now = MeterData[u8PowerMeterID].TotalWatt;
-						//	if Initialize
+
 						if ( PowerOnReadMeter )
 						{
 								PowerOnReadMeter = 0 ;
 								TotalWattValue_Now = u32temp ;
-								LastMeterPower[u8PowerMeterID] = TotalWattValue_Now ;
 								MeterData[u8PowerMeterID].TotalWatt = TotalWattValue_Now ;
 								GapErrorTimes[u8PowerMeterID] = 0 ;
 						}
@@ -302,15 +310,13 @@ void MeterDataProcess(void)
 								if ( GapMeterPower < 200 )
 								{
 										TotalWattValue_Now = u32temp ;
-										LastMeterPower[u8PowerMeterID] = TotalWattValue_Now;
 										MeterData[u8PowerMeterID].TotalWatt = TotalWattValue_Now ;											
 										GapErrorTimes[u8PowerMeterID] = 0 ;
 								} else {
 										GapErrorTimes[u8PowerMeterID] ++;
 										if ( GapErrorTimes[u8PowerMeterID] > 3 ) 
 										{
-												TotalWattValue_Now = u32temp ;
-												LastMeterPower[u8PowerMeterID] = TotalWattValue_Now;						
+												TotalWattValue_Now = u32temp ;					
 												GapErrorTimes[u8PowerMeterID] = 0 ;
 												MeterData[u8PowerMeterID].TotalWatt = TotalWattValue_Now ;
 												//WritePowerToEE();
@@ -321,7 +327,6 @@ void MeterDataProcess(void)
 								if ( GapErrorTimes[u8PowerMeterID] > 3 )
 								{
 									TotalWattValue_Now = u32temp ;
-									LastMeterPower[u8PowerMeterID] = TotalWattValue_Now;	
 									MeterData[u8PowerMeterID].TotalWatt = TotalWattValue_Now ;
 									//WritePowerToEE();
 									GapErrorTimes[u8PowerMeterID] = 0 ;
@@ -553,18 +558,6 @@ void MeterDataProcess(void)
 							break;
 					}						
 				}
-
-				if ( MeterMBCmd == MDBS_METER_GET_MODE)
-				{
-						MeterData[u8PowerMeterID].Mode =  TokenMeter[4] ;
-						if (MeterData[u8PowerMeterID].Mode < 0x01)
-							{
-									if ( PwrMtrCmdList[u8PowerMeterID] == MBPMCMD_READY )
-									{
-											PwrMtrCmdList[u8PowerMeterID] = MP_SET_MODE ;
-									}
-							} 	
-				}
 				
 //		STR_METER_D MD;
 //		I2cWriteDataStruct(u8PowerMeterID, &MeterData[u8PowerMeterID]);
@@ -590,26 +583,27 @@ void CalChecksumM(void)
 
 void MeterSuccess(void)
 {	
-		uint8_t PowerMeterArrayIndex = PollingPwrMtrID -1;
+		uint8_t PwrMtrArrayIndex = PollingPwrMtrID -1;
 		//	Record communication accuracy.
-    PowerMeterNG &= (~(0x00000001 <<  (PowerMeterArrayIndex) ) );
-		PowerMeterRxCounter[PowerMeterArrayIndex]++;
-    MeterErrorRate5Min_Rx[PowerMeterArrayIndex][MeterErrorRate5Min_Wp]++; 
+    PwrMtrError.PwrMtrDeviceNG &= (~(0x00000001 <<  (PwrMtrArrayIndex) ) );
+		PwrMtrError.Success[PwrMtrArrayIndex]++;
+    //MeterErrorRate5Min_Rx[PwrMtrArrayIndex][MeterErrorRate5Min_Wp]++; 
 	
 		PollingStateIndex++;
     MeterPollingState = MP_READY;	
 }
 void MeterTimeoutProcess(void)
 {
-		uint8_t PowerMeterArrayIndex = PollingPwrMtrID -1;
+		uint8_t PwrMtrArrayIndex = PollingPwrMtrID -1;
     // Record Error Status
     if ( TickPollingInterval > POLL_TIMEOUT )
     {
         MeterPollingState = MP_READY;							
         PowerMeterReadErrorCnt++;
+				PwrMtrError.Fail[PwrMtrArrayIndex]++;
         if( PowerMeterReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
-            PowerMeterNG |=  (0x00000001 <<  (PowerMeterArrayIndex) ) ;
+            PwrMtrError.PwrMtrDeviceNG |=  (0x00000001 <<  (PwrMtrArrayIndex) ) ;
             PollingStateIndex++;
             PowerMeterReadErrorCnt = 0 ;            
             ResetMeterUART();

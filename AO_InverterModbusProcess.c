@@ -29,8 +29,6 @@
 /*** 	Inverter variables	***/
 InvError_t InvError;
 InvData_t	 InvData;
-BatData_t	 BatData;
-CtlrData_t CtrlData;
 uint8_t INVPollingState;
 uint8_t INVPollingStateIndex;
 uint8_t InvReadErrorCnt;
@@ -99,54 +97,33 @@ void INVDataProcess(void)
 				((TokenMeter[0] == 0x56) && (TokenMeter[1] == 0x47) && (TokenMeter[2] == 0x48) && (TokenMeter[3] == 0x42)) ||
 				((TokenMeter[0] == 0x56) && (TokenMeter[1] == 0x50) && (TokenMeter[2] == 0x48) && (TokenMeter[3] == 0x42)))
 		{
-				uint8_t statusByte1 = TokenMeter[5];
-				uint8_t statusByte2 = TokenMeter[6];
-				uint8_t statusByte3 = TokenMeter[7];
-				uint8_t warnByte1   = TokenMeter[8];
-				uint8_t warnByte2   = TokenMeter[9];
-				uint8_t warnByte3   = TokenMeter[10];
-				uint8_t faultByte1  = TokenMeter[11];
-				uint8_t faultByte2  = TokenMeter[12];
-				uint8_t faultByte3  = TokenMeter[13];
+				InvData.statusByte1 = TokenMeter[5];
+				InvData.statusByte3 = TokenMeter[7];
+
+				InvData.warnByte1   = TokenMeter[8];
+				InvData.warnByte2   = TokenMeter[9];
 			
-				CtrlData.ConnectFlag 	= (statusByte1 >> 3) & 0x01;
-				CtrlData.ChargingFlag = (statusByte1 >> 2) & 0x01;				
-				InvData.ChargingFlag  	=	(statusByte1 >> 1) & 0x01;
-				BatData.Full  				=	(statusByte1 >> 0) & 0x01;
+				InvData.faultByte1  = TokenMeter[11];
+				InvData.faultByte2  = TokenMeter[12];
+				InvData.faultByte3  = TokenMeter[13];
 			
-				CtrlData.FaultFlag 		= (statusByte3 >> 3) & 0x01;
-				CtrlData.WarnFlag 		= (statusByte3 >> 2) & 0x01;				
-				InvData.FaultFlag  		=	(statusByte3 >> 1) & 0x01;
-				InvData.WarnFlag 			=	(statusByte3 >> 0) & 0x01;
-			
-				BatData.LoadWarnFlag 	= (warnByte1 >> 7) & 0x01;//
-				BatData.TempWarnFlag 	= (warnByte1 >> 6) & 0x01;//
-				BatData.LoadTimeoutWarnFlag =	(warnByte1 >> 5) & 0x01;
-				BatData.LoadOverWarnFlag 		=	(warnByte1 >> 4) & 0x01;
-				BatData.BatHighVoltWarnFlag = (warnByte1 >> 3) & 0x01;
-				BatData.BatLowVoltWarnFlag 	= (warnByte1 >> 2) & 0x01;
-				BatData.StoreDataErrWarnFlag 	=	(warnByte1 >> 1) & 0x01;
-				BatData.StoreOpFailWarnFlag 	=	(warnByte1 >> 0) & 0x01;
+				InvData.InputVolt		= TokenMeter[14] << 8 | TokenMeter[15];
+				InvData.InputFreq		= TokenMeter[16] << 8 | TokenMeter[17];
+				InvData.OutputVolt	= TokenMeter[18] << 8 | TokenMeter[19];
+				InvData.OutputFreq	= TokenMeter[20] << 8 | TokenMeter[21];
+				InvData.BatVolt			= TokenMeter[22] << 8 | TokenMeter[23];
+
+				InvData.BatCapacity = TokenMeter[24];
+				InvData.InvCurrent  = TokenMeter[25];
+				InvData.LoadPercentage = TokenMeter[26];				
+				InvData.MachineTemp = TokenMeter[27];
+				InvData.MachineStatusCode  = TokenMeter[28];
+				InvData.SysStatus 	= TokenMeter[32];			
 				
-				BatData.InvFuncErrWarnFlag 	 = (warnByte2 >> 2) & 0x01;
-				BatData.PlanShutdownWarnFlag = (warnByte2 >> 1) & 0x01;
-				BatData.OutputWarnFlag 			 = (warnByte2 >> 0) & 0x01;
-				
-				BatData.InvErrFaultFlag 		 = (faultByte1 >> 7) & 0x01;
-				BatData.TempOverFaultFlag 	 = (faultByte1 >> 6) & 0x01;
-				BatData.TempSensorFaultFlag  = (faultByte1 >> 5) & 0x01;
-				BatData.LoadTimeoutFaultFlag = (faultByte1 >> 4) & 0x01;
-				BatData.LoadErrFaultFlag 		 = (faultByte1 >> 3) & 0x01;
-				BatData.LoadOverFaultFlag 	 = (faultByte1 >> 2) & 0x01;
-				BatData.BatHighVoltFaultFlag = (faultByte1 >> 1) & 0x01;
-				BatData.BatLowVoltFaultFlag  = (faultByte1 >> 0) & 0x01;
-
-				BatData.PlanShutdownFaultFlag = (faultByte2 >> 1) & 0x01;
-				BatData.OutputErrFaultFlag 	  = (faultByte2 >> 0) & 0x01;
-
-				BatData.ChipStartFailFaultFlag 	= (faultByte3 >> 7) & 0x01;
-				BatData.CurrentSensorFaultFlag 	= (faultByte3 >> 6) & 0x01;
-
+				InvData.PV_volt = TokenMeter[36] << 8 | TokenMeter[37];				
+				InvData.CtrlCurrent = TokenMeter[38];
+				InvData.CtrlTemp  = TokenMeter[39];
+				InvData.CtrlStatusCode 	= TokenMeter[40];		
 		}
 }
 

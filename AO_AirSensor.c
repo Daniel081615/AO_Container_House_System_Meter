@@ -53,12 +53,13 @@ void AirSensorPolling(void)
             } else {
                 AirSensorTimeoutProcess();
             }
+						
 					break;
 				
 				case	AS_POLLING_CMD:
 						MODBUS_SendAirSensorCmd();
 						AirSensorPollingState = AS_POLLING_RSP;
-						TickPollingInterval = 0 ;			
+						TickPollingInterval = 0 ;	
 					break;
 				
 		}
@@ -69,34 +70,32 @@ void AirSensorPolling(void)
  ***/
 void AirSensorDataProcess(void)
 {
-		uint8_t AirSensorArrayIndex;
-		uint16_t u16tmp;
-		uint32_t u32tmp;
+		uint8_t AirSensorIdx;
 		
 		if (GotDeviceRsp != AirSensorIDArray[PollingAirSensorID-1]) return;	//	check the host address idx
 		
-		AirSensorArrayIndex = PollingAirSensorID -1;
+		AirSensorIdx = PollingAirSensorID -1;
 	
-    AirSensorData[AirSensorArrayIndex].Co2 					= ((TokenMeter[3] << 8) | TokenMeter[4]);          
-    AirSensorData[AirSensorArrayIndex].Formaldehyde = ((TokenMeter[5] << 8) | TokenMeter[6]); 
-    AirSensorData[AirSensorArrayIndex].Tvoc 				= ((TokenMeter[7] << 8) | TokenMeter[8]);         
-    AirSensorData[AirSensorArrayIndex].Pm25         = ((TokenMeter[9] << 8) | TokenMeter[10]); 
-    AirSensorData[AirSensorArrayIndex].Pm10         = ((TokenMeter[11] << 8) | TokenMeter[12]); 
-    AirSensorData[AirSensorArrayIndex].Temperature	= ((TokenMeter[13] << 8) | TokenMeter[14]);  
-    AirSensorData[AirSensorArrayIndex].Humidity			= ((TokenMeter[15] << 8) | TokenMeter[16]);  
+    AirSensorData[AirSensorIdx].Co2 					= ((TokenMeter[3] << 8) | TokenMeter[4]);          
+    AirSensorData[AirSensorIdx].Formaldehyde = ((TokenMeter[5] << 8) | TokenMeter[6]); 
+    AirSensorData[AirSensorIdx].Tvoc 				= ((TokenMeter[7] << 8) | TokenMeter[8]);         
+    AirSensorData[AirSensorIdx].Pm25         = ((TokenMeter[9] << 8) | TokenMeter[10]); 
+    AirSensorData[AirSensorIdx].Pm10         = ((TokenMeter[11] << 8) | TokenMeter[12]); 
+    AirSensorData[AirSensorIdx].Temperature	= ((TokenMeter[13] << 8) | TokenMeter[14]);  
+    AirSensorData[AirSensorIdx].Humidity			= ((TokenMeter[15] << 8) | TokenMeter[16]);  
 }		
 
 /***
- *	@brief	Send pyranometer modbus cmd
+ *	@brief	Send AirSensor modbus cmd
  ***/
 void MODBUS_SendAirSensorCmd(void)
 {
+		GotDeviceRsp = 0xff;
 		MeterTxBuffer[0] = AirSensorIDArray[PollingAirSensorID-1] ; 
 		//	To determine if Device respond.
-		GotDeviceRsp = 0xFF ;
 		MeterTxBuffer[1] = 0x03;
 		MeterTxBuffer[2] = 0x00;
-		MeterTxBuffer[3] = 0x07;
+		MeterTxBuffer[3] = 0x02;
 		MeterTxBuffer[4] = 0x00;
 		MeterTxBuffer[5] = 0x07;
 		CRC16(MeterTxBuffer, 6);
@@ -107,10 +106,11 @@ void MODBUS_SendAirSensorCmd(void)
 
 void AirSensorSuccess(void)
 {
-		uint8_t AirSensorArrayIndex = PollingAirSensorID -1;
+		uint8_t AirSensorIdx;
+		AirSensorIdx = PollingAirSensorID -1; 	
 
-		AirSensorError.Success[AirSensorArrayIndex] += 1;
-		AirSensorError.ASDeviceNG &= (~(0x00000001 << (AirSensorArrayIndex)));
+		AirSensorError.Success[AirSensorIdx] += 1;
+		AirSensorError.ASDeviceNG &= (~(0x00000001 << (AirSensorIdx)));
 		//	Move to next pollingstate
 		AirSensorPollingStateIndex++;    
 		AirSensorPollingState = AS_POLLING_READY;			
@@ -118,17 +118,17 @@ void AirSensorSuccess(void)
 
 void AirSensorTimeoutProcess(void)
 {
-		uint8_t AirSensorArrayIndex = PollingAirSensorID -1; 	
+		uint8_t AirSensorIdx;
+		AirSensorIdx = PollingAirSensorID -1; 	
 	
     if ( TickPollingInterval > POLL_TIMEOUT )
     {							
         AirSensorReadErrorCnt++;
-				//	Error report system    
-				AirSensorError.Fail[AirSensorArrayIndex] += 1;
+				AirSensorError.Fail[AirSensorIdx] += 1;
 				AirSensorPollingState = AS_POLLING_READY;
         if( AirSensorReadErrorCnt > MAX_POLL_RETRY_TIMES )
         {
-						AirSensorError.ASDeviceNG |= (0x00000001 << (AirSensorArrayIndex));
+						AirSensorError.ASDeviceNG |= (0x00000001 << (AirSensorIdx));
             PollingAirSensorID++;
             AirSensorReadErrorCnt = 0 ;            
             ResetMeterUART();

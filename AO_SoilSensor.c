@@ -41,9 +41,9 @@ void SoilSensorPolling(void)
 		switch(SoilSensorPollingState)	
 		{
 				case	SS_POLLING_READY:
-						if (TickReadPowerTime >= ReadMeterTime)
+						if (TickReadDeviceTime >= ReadDeviceCmdTime)
 						{
-								TickReadPowerTime = 0 ;	
+								TickReadDeviceTime = 0 ;	
 								SoilSensorPollingState = SS_POLLING_MOISTURE + SoilSensorPollingStateIndex;
 								
 								if (SoilSensorPollingState > SS_POLLING_K_OFFSET)
@@ -469,7 +469,7 @@ void SoilSensorDataProcess(void)
 
         case MDBS_GET_FERT_COEF:
             u32tmp = ((uint32_t)TokenMeter[3] << 24) | ((uint32_t)TokenMeter[4] << 16) | ((uint32_t)TokenMeter[5] << 8) | TokenMeter[6];
-            SoilSensorData[SoilSensorArrayIndex].Fert_Coef = *((float*)&u32tmp);
+            SoilSensorData[SoilSensorArrayIndex].Fert_Coef = u32tmp;
             break;
 
         case MDBS_GET_FERT_OFFSET:
@@ -478,7 +478,7 @@ void SoilSensorDataProcess(void)
 
         case MDBS_GET_N_COEF:
             u32tmp = ((uint32_t)TokenMeter[3] << 24) | ((uint32_t)TokenMeter[4] << 16) | ((uint32_t)TokenMeter[5] << 8) | TokenMeter[6];
-            SoilSensorData[SoilSensorArrayIndex].Nitrogen_Coef = *((float*)&u32tmp);
+            SoilSensorData[SoilSensorArrayIndex].Nitrogen_Coef = u32tmp;
             break;
 
         case MDBS_GET_N_OFFSET:
@@ -487,7 +487,7 @@ void SoilSensorDataProcess(void)
             
         case MDBS_GET_P_COEF:
             u32tmp = ((uint32_t)TokenMeter[3] << 24) | ((uint32_t)TokenMeter[4] << 16) | ((uint32_t)TokenMeter[5] << 8) | TokenMeter[6];
-            SoilSensorData[SoilSensorArrayIndex].Phosphorus_Coef = *((float*)&u32tmp);
+            SoilSensorData[SoilSensorArrayIndex].Phosphorus_Coef = u32tmp;
             break;
 
         case MDBS_GET_P_OFFSET:
@@ -496,7 +496,7 @@ void SoilSensorDataProcess(void)
             
         case MDBS_GET_K_COEF:
             u32tmp = ((uint32_t)TokenMeter[3] << 24) | ((uint32_t)TokenMeter[4] << 16) | ((uint32_t)TokenMeter[5] << 8) | TokenMeter[6];
-            SoilSensorData[SoilSensorArrayIndex].Potassium_Coef = *((float*)&u32tmp);
+            SoilSensorData[SoilSensorArrayIndex].Potassium_Coef = u32tmp;
             break;
 
         case MDBS_GET_K_OFFSET:

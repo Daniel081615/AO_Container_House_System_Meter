@@ -10,6 +10,7 @@
 #define _AO_EXTERN_FUNC_H_
 
 #include "AO_MyDef.h"
+#include "AO_MeterProcess.h"
 
 extern void ReadParameterFromEE(void);
 extern void WriteParameterFromEE(void);
@@ -37,7 +38,6 @@ extern void RecordStopProcess(void);
 extern void RoomPowerManager_Pluse(void);
 extern void RoomPowerManager_Digital(void);
 
-extern void PowerRCD_AddNew(uint8_t NowUserExit);
 extern void ReaderPolling(void);
 extern void MeterPolling(void);
 
@@ -56,7 +56,6 @@ extern void DigitMeterPowerON(void);
 extern void DigitMeterPowerOFF(void);
 
 extern void SendHost_MeterStatus(void);
-extern void TagChargeRCD_AddNew(void);
 extern void UserCGRModeJoin(uint8_t *fnMemberUID);
 extern void UserCGRModeExit(uint8_t *fnMemberUID);
 extern void EnableHostUartTx(void);
@@ -75,7 +74,6 @@ extern uint8_t PyrMtrIDArray[1];
 extern uint8_t SoilSensorIDArray[1];
 extern uint8_t AirSensorIDArray[1];
 
-extern uint8_t MeterErrorRate[PwrMtrMax];
 extern uint16_t MeterErrorRate_Tx[PwrMtrMax];
 extern uint16_t MeterErrorRate_Rx[PwrMtrMax];
 extern uint8_t     MeterErrorRate5Min_Wp;
@@ -125,8 +123,8 @@ extern uint8_t LastReaderRecord_RP;
 extern uint8_t TickHostUart, TickMeterUart;
 extern uint8_t 	iSystemTime[8];
 extern uint8_t TokenReader[READER_TOKEN_LENGTH];
-extern _Bool bResetUARTQ,TokenMeterReady;
-extern uint8_t TickHost,SaveStep;
+extern _Bool TokenMeterReady;
+extern uint8_t TickHost;
 extern uint8_t PacketIndex;
 extern uint8_t fgFromHostFlag,fgToHostFlag,fgToHostRSPFlag,fgReaderFunction;
 extern uint8_t fgFromReaderFlag, fgToReaderFlag, fgToReaderRSPFlag;
@@ -138,9 +136,9 @@ extern uint8_t NewRecordCounter, Record_WP, Record_RP;
  @note : Devices variables extern
  ***/
 //	Powermeter
-extern uint8_t PowerMeterID;
 extern uint8_t PwrMtrNewAddr;
 extern uint8_t PwrMtrNewBaudRate, PowerMeterMode, PowerMeterDO_OnOff, PowerMeterDOLock;
+extern PwrMtrError_t PwrMtrError;
 //	Bms
 extern uint32_t BmsNewAddr, CellCount;
 extern uint16_t ModeFlags;
@@ -159,13 +157,11 @@ extern uint8_t uchCRCHi;  /* high byte of CRC initialized */
 extern uint8_t uchCRCLo;  /* low byte of CRC initialized */
 extern uint8_t MeterType;
 extern uint32_t NowMeterPower;
-extern uint32_t LastMeterPower[PwrMtrMax];
 extern uint32_t TotalWattValue_Now;
-extern uint8_t AutoLockTime;
 extern uint8_t MeterMBCmd,MeterRelayStatus;
 extern _Bool fgSwPower,PowerOnReadMeter,PowerOnTimeSync;
 extern uint8_t MeterPollingState,MeterError,TickPollingInterval;
-extern uint16_t  TickReadPowerTime,ReadMeterTime;
+extern uint16_t  TickReadDeviceTime,ReadDeviceCmdTime;
 
 extern uint8_t  DelayTime4NextCmd,MtrRelayOnOff,CenterRoomMode;
 
@@ -178,7 +174,6 @@ extern float Min_LowBalance;
 
 extern uint8_t PollingStateIndex;
 extern _Bool fgDIR485_Reader;
-extern uint8_t tmpMemberMode[3];
 extern uint32_t PowerMeterRxCounter[PwrMtrMax];
 extern uint32_t PowerMeterTxCounter[PwrMtrMax];
 extern uint8_t HOSTTxQ[MAX_HOST_TXQ_LENGTH];
@@ -214,7 +209,6 @@ extern void CmdModbus_BMS(uint8_t ModbusCmd);
 extern void CmdModbus_WM(uint8_t ModbusCmd);
 extern void CmdModBus_DEM5x0(uint8_t ModBusCmd);
 
-extern uint32_t    PowerMeterNG;
 
 extern void UART2_Init(uint32_t u32baudrate);
 extern void MeterDEM_510c_Init(void);
