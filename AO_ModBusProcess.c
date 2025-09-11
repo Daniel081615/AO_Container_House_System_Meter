@@ -1,6 +1,6 @@
 /*--------------------------------------------------------------------------- 
  * File Name     : MODBusProcess.C
- * Description   : RS485 Comucation with ªü©Ô´µ¥[¼ö¥æ¾÷
+ * Description   : RS485 Comucation with ï¿½ï¿½ï¿½Ô´ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½
  * Company 		 : AOTECH
  * Author Name   : Barry Su
  * Starting Date : 2015.7.1
@@ -25,7 +25,7 @@ void BAW2A_GetBalance(void);
 //#include "My.h"
 
 
-/* Table of CRC values for high¡Vorder byte */
+/* Table of CRC values for highï¿½Vorder byte */
 const unsigned char auchCRCHi[] = {
 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81,
 0x40, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0,
@@ -47,7 +47,7 @@ const unsigned char auchCRCHi[] = {
 0x40
 };
 
-/* Table of CRC values for low¡Vorder byte */
+/* Table of CRC values for lowï¿½Vorder byte */
 const char auchCRCLo[] = {
 0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06, 0x07, 0xC7, 0x05, 0xC5, 0xC4,
 0x04, 0xCC, 0x0C, 0x0D, 0xCD, 0x0F, 0xCF, 0xCE, 0x0E, 0x0A, 0xCA, 0xCB, 0x0B, 0xC9, 0x09,
@@ -377,10 +377,10 @@ void BAW2A_AddBalance(void)
     MeterTxBuffer[5]=0x02;          // Data 3    
     MeterTxBuffer[6]=0x04;          // Data 3 
     // Add 50000.00
-    MeterTxBuffer[7]=0x33;          // Data 3 	( ¹ê»Ú¥[­È¬°´î -0x33 = 0x00)
-    MeterTxBuffer[8]=0x7F;          // Data 3  ( ¹ê»Ú¥[­È¬°´î -0x33 = 0x4C)
-    MeterTxBuffer[9]=0x7E;          // Data 3  ( ¹ê»Ú¥[­È¬°´î -0x33 = 0x4B)
-    MeterTxBuffer[10]=0x73;        // Data 3 	( ¹ê»Ú¥[­È¬°´î -0x33 = 0x40)
+    MeterTxBuffer[7]=0x33;          // Data 3 	( ï¿½ï¿½Ú¥[ï¿½È¬ï¿½ï¿½ï¿½ -0x33 = 0x00)
+    MeterTxBuffer[8]=0x7F;          // Data 3  ( ï¿½ï¿½Ú¥[ï¿½È¬ï¿½ï¿½ï¿½ -0x33 = 0x4C)
+    MeterTxBuffer[9]=0x7E;          // Data 3  ( ï¿½ï¿½Ú¥[ï¿½È¬ï¿½ï¿½ï¿½ -0x33 = 0x4B)
+    MeterTxBuffer[10]=0x73;        // Data 3 	( ï¿½ï¿½Ú¥[ï¿½È¬ï¿½ï¿½ï¿½ -0x33 = 0x40)
     CRC16(MeterTxBuffer,11);
     MeterTxBuffer[11]=uchCRCHi;      // // CRC Checksum 
     MeterTxBuffer[12]=uchCRCLo;      // // CRC Checksum 
@@ -446,7 +446,7 @@ void BAW2A_Get_P(void)
     MeterMBCmd = MDBS_METER_GET_P ;
     MeterTxBuffer[1]=0x03;          // Function 
     MeterTxBuffer[2]=0x00;          // Data 0
-    MeterTxBuffer[3]=0xDB;          // Data 1 ( ¦³¥\¥\²v )
+    MeterTxBuffer[3]=0xDB;          // Data 1 ( ï¿½ï¿½ï¿½\ï¿½\ï¿½v )
     MeterTxBuffer[4]=0x00;          // Data 2
     MeterTxBuffer[5]=0x02;          // Data 3
     CRC16(MeterTxBuffer,6);
@@ -459,7 +459,7 @@ void BAW2A_Get_S(void)
     MeterMBCmd = MDBS_METER_GET_S ;
     MeterTxBuffer[1]=0x03;          // Function 
     MeterTxBuffer[2]=0x00;          // Data 0
-    MeterTxBuffer[3]=0xDD;          // Data 1 ( µø¦b¥\²v )
+    MeterTxBuffer[3]=0xDD;          // Data 1 ( ï¿½ï¿½ï¿½bï¿½\ï¿½v )
     MeterTxBuffer[4]=0x00;          // Data 2
     MeterTxBuffer[5]=0x02;          // Data 3
     CRC16(MeterTxBuffer,6);					// 
@@ -472,7 +472,7 @@ void BAW2A_Get_PF(void)
     MeterMBCmd = MDBS_METER_GET_PF ;
     MeterTxBuffer[1]=0x03;          // Function 
     MeterTxBuffer[2]=0x00;          // Data 0
-    MeterTxBuffer[3]=0xDF;          // Data 1 ( ¥\²v¦]¤l )
+    MeterTxBuffer[3]=0xDF;          // Data 1 ( ï¿½\ï¿½vï¿½]ï¿½l )
     MeterTxBuffer[4]=0x00;          // Data 2
     MeterTxBuffer[5]=0x01;          // Data 3
     CRC16(MeterTxBuffer,6);
@@ -506,7 +506,7 @@ void BAW2A_SetPowerOn(void)
     MeterTxBuffer[5]=0x01;          // Data 3    
     MeterTxBuffer[6]=0x02;          // Data 3 
     MeterTxBuffer[7]=0x00;          // Data 3 
-    MeterTxBuffer[8]=PayMode;          // ¦©´Ú¼Ò¦¡
+    MeterTxBuffer[8]=PayMode;          // ï¿½ï¿½ï¿½Ú¼Ò¦ï¿½
     CRC16(MeterTxBuffer,9);
     MeterTxBuffer[9]=uchCRCHi;      // // CRC Checksum 
     MeterTxBuffer[10]=uchCRCLo;      // // CRC Checksum 
@@ -524,13 +524,13 @@ void BAW2A_SetTime(void)
     MeterTxBuffer[6]=0x08;          // Data 3 
 
     MeterTxBuffer[7]=0x00;          // Data 3 
-    MeterTxBuffer[8]=u8Year;          // ¦©´Ú¼Ò¦¡
+    MeterTxBuffer[8]=u8Year;          // ï¿½ï¿½ï¿½Ú¼Ò¦ï¿½
     MeterTxBuffer[9]=u8Month;          // Data 3 
-    MeterTxBuffer[10]=u8Day;          // ¦©´Ú¼Ò¦¡
+    MeterTxBuffer[10]=u8Day;          // ï¿½ï¿½ï¿½Ú¼Ò¦ï¿½
     MeterTxBuffer[11]=u8Hour;          // Data 3 
-    MeterTxBuffer[12]=u8Min;          // ¦©´Ú¼Ò¦¡
+    MeterTxBuffer[12]=u8Min;          // ï¿½ï¿½ï¿½Ú¼Ò¦ï¿½
     MeterTxBuffer[13]=u8Sec;          // Data 3 
-    MeterTxBuffer[14]=u8Week;          // ¦©´Ú¼Ò¦¡
+    MeterTxBuffer[14]=u8Week;          // ï¿½ï¿½ï¿½Ú¼Ò¦ï¿½
     CRC16(MeterTxBuffer,15);
     MeterTxBuffer[16]=uchCRCHi;      // // CRC Checksum 
     MeterTxBuffer[17]=uchCRCLo;      // // CRC Checksum 
@@ -568,7 +568,7 @@ void BAW2A_GetCardID(void)
     MeterMBCmd = MDBS_METER_GET_CARD_ID ;
     MeterTxBuffer[1]=0x03;          // Function 
     MeterTxBuffer[2]=0x01;          // Data 0
-    MeterTxBuffer[3]=0x23;          // Data 1 ( ¥\²v¦]¤l )
+    MeterTxBuffer[3]=0x23;          // Data 1 ( ï¿½\ï¿½vï¿½]ï¿½l )
     MeterTxBuffer[4]=0x00;          // Data 2
     MeterTxBuffer[5]=0x04;          // Data 3
     CRC16(MeterTxBuffer,6);

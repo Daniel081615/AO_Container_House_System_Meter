@@ -490,13 +490,13 @@ typedef struct STR_CHG_RECORD {
 } STR_TAG_CHG ;
 
 typedef struct strUserInfo {
-	uint8_t mode;				//  0x01 :  ­p¶O¤¤
-	uint8_t SID[4];				//¾Ç¸¹
-	uint8_t UID[4];				// ¥d¸¹	
-	float  Balance;				//¾lÃB		
-	uint8_t StartTime[6];		// ¦©´Ú¶}©l
-	uint32_t StartMeter;		//¦©´Úµ²§ô	
-	float StartBalance;			//¦©´Úµ²§ô	
+	uint8_t mode;				//  0x01 :  ï¿½pï¿½Oï¿½ï¿½
+	uint8_t SID[4];				//ï¿½Ç¸ï¿½
+	uint8_t UID[4];				// ï¿½dï¿½ï¿½	
+	float  Balance;				//ï¿½lï¿½B		
+	uint8_t StartTime[6];		// ï¿½ï¿½ï¿½Ú¶}ï¿½l
+	uint32_t StartMeter;		//ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½	
+	float StartBalance;			//ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½	
 } STR_UserInfo;
 
 typedef struct STR_TIME_FORMAT {    

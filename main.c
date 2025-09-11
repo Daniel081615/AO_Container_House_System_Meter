@@ -1569,7 +1569,7 @@ void ChangeRS485Direct(void)
 void ReadUserInfoFromEE(void)
 {
 	uint8_t i,j,addrC;
-	// Åª¨ú¥d¸¹
+	// Åªï¿½ï¿½ï¿½dï¿½ï¿½
 	addrC=0;
 	for(i=0;i<MEMBER_MAX_NO;i++)
 	{
@@ -1579,7 +1579,7 @@ void ReadUserInfoFromEE(void)
 			addrC++;
 		}
 	}
-	// Åª¨ú¾Ç¸¹
+	// Åªï¿½ï¿½ï¿½Ç¸ï¿½
 	addrC=0;
 	for(i=0;i<MEMBER_MAX_NO;i++)
 	{
@@ -1594,7 +1594,7 @@ void ReadUserInfoFromEE(void)
 void WriteUserInfoToEE(void)
 {
 	uint8_t i,j,addrC;
-	// ¼g¤J¥d¸¹
+	// ï¿½gï¿½Jï¿½dï¿½ï¿½
 	addrC=0;
 	for(i=0;i<MEMBER_MAX_NO;i++)
 	{
@@ -1604,7 +1604,7 @@ void WriteUserInfoToEE(void)
 			addrC++;
 		}
 	}
-	// ¼g¤J¾Ç¸¹
+	// ï¿½gï¿½Jï¿½Ç¸ï¿½
 	addrC=0;
 	for(i=0;i<MEMBER_MAX_NO;i++)
 	{
