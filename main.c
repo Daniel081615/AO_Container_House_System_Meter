@@ -49,10 +49,6 @@
 
 
 #define DIGIT_METER	
-
-#define POWER_100W_COUNTER		160
-
-#define SYSTEM_ERROR_TIMEOUT		500
 #define MAX_BUTTON_TIMES			5
 #define EEPROM_ADDR				0x50
 
@@ -69,13 +65,13 @@
 #define EE_ADDR_METER_VALUE		0x0080
 
 /*	Idx of devices 	*/
+
 uint8_t WtrMtrIDArray[WtrMtrMax] = {0x01};
 uint8_t PwrMtrIDArray[PwrMtrMax] = {0x02};
-uint8_t BmsIDArray[1] = {0x03};
-
-uint8_t SoilSensorIDArray[1] = {0x04};		/***	Already setup	***/
-uint8_t AirSensorIDArray[1] = {0x05};			
-uint8_t PyrMtrIDArray[1] = {0x06};				/***	Already setup	***/
+uint8_t BmsIDArray[BmsMax] = {0x03};
+uint8_t SoilSensorIDArray[SoilSensorMax] = {0x04};		/***	Already setup	***/
+uint8_t AirSensorIDArray[AirSensorMax] = {0x05};			
+uint8_t PyrMtrIDArray[PyrMtrMax] = {0x06};				/***	Already setup	***/
 
 uint8_t MaxPowerMeter;
 STR_METER_D MeterData[PwrMtrMax];
@@ -91,18 +87,14 @@ uint8_t iStatus;
 // System 
 uint8_t iSystemTime[8]={0,0,0,0,0,0,0,0};		// Year,Month,Day,Hour,Min,Sec,Week
 uint8_t UID[4];
-uint8_t ReaderTxBuffer[READER_TOKEN_LENGTH];
 uint8_t HostTxBuffer[HOST_TOKEN_LENGTH];
 uint8_t SystemPowerStatus;
 uint8_t TokenHost[HOST_TOKEN_LENGTH];
-uint8_t TokenReader[READER_TOKEN_LENGTH];
 uint8_t MeterTxBuffer[METER_TOKEN_LENGTH];
 uint8_t TokenMeter[METER_TOKEN_LENGTH];
 
 uint8_t HOSTTxQ[MAX_HOST_TXQ_LENGTH];
 uint8_t HOSTRxQ[MAX_HOST_RXQ_LENGTH];
-uint8_t READERTxQ[MAX_READER_TXQ_LENGTH];
-uint8_t READERRxQ[MAX_READER_RXQ_LENGTH];
 uint8_t METERRxQ[MAX_METER_RXQ_LENGTH];
 uint8_t METERTxQ[MAX_METER_TXQ_LENGTH];
 
@@ -666,84 +658,84 @@ void UART02_IRQHandler(void)
 /*---------------------------------------------------------------------------------------------------------*/
 /*  UART1 Handler                                                                                       */
 /*---------------------------------------------------------------------------------------------------------*/
-void UART1_IRQHandler(void)
-{
-	uint32_t u32IntSts;
-	uint8_t Rxbuf,i;
+//void UART1_IRQHandler(void)
+//{
+//	uint32_t u32IntSts;
+//	uint8_t Rxbuf,i;
 
-#if 1
-	
-	u32IntSts = UART1->INTSTS;
-	if(u32IntSts & UART_INTSTS_RDAINT_Msk)
-	{
-		/* Get all the input characters */
-		while(UART_IS_RX_READY(UART1))
-		{
-			/* Get the character from UART Buffer */
-			Rxbuf = UART_READ(UART1);
+//#if 1
+//	
+//	u32IntSts = UART1->INTSTS;
+//	if(u32IntSts & UART_INTSTS_RDAINT_Msk)
+//	{
+//		/* Get all the input characters */
+//		while(UART_IS_RX_READY(UART1))
+//		{
+//			/* Get the character from UART Buffer */
+//			Rxbuf = UART_READ(UART1);
 
-			/* Rx completed */		
-			READERRxQ[READERRxQ_wp] = Rxbuf;
-			READERRxQ_wp++;
-			READERRxQ_cnt++;
-			
-			if ( READERRxQ_wp >= MAX_READER_RXQ_LENGTH ) READERRxQ_wp=0;
-			
-			if ( READERRxQ[0] != 0x55 ) 
-			{
-				READERRxQ_wp=0;
-				READERRxQ_cnt=0;
-				READERRxQ_rp=0;
-			}	
-			if( READERRxQ_cnt >= READER_TOKEN_LENGTH )
-			{
-				if ( READERRxQ[READER_TOKEN_LENGTH-1] != 0x0A ) {
-					READERRxQ_wp=0;
-					READERRxQ_cnt=0;
-					READERRxQ_rp=0;
-					return;
-				}
-				for(i=0;i<READER_TOKEN_LENGTH;i++)
-				{
-					TokenReader[i]=READERRxQ[READERRxQ_rp];
-					READERRxQ_cnt--;
-					READERRxQ_rp++;
-					if(READERRxQ_rp >= MAX_READER_RXQ_LENGTH) READERRxQ_rp = 0 ;
-				}
-				READERRxQ_wp=0;
-				READERRxQ_cnt=0;
-				READERRxQ_rp=0;
-				READERTokenReady = 1 ;
-			} 
-		}
+//			/* Rx completed */		
+//			READERRxQ[READERRxQ_wp] = Rxbuf;
+//			READERRxQ_wp++;
+//			READERRxQ_cnt++;
+//			
+//			if ( READERRxQ_wp >= MAX_READER_RXQ_LENGTH ) READERRxQ_wp=0;
+//			
+//			if ( READERRxQ[0] != 0x55 ) 
+//			{
+//				READERRxQ_wp=0;
+//				READERRxQ_cnt=0;
+//				READERRxQ_rp=0;
+//			}	
+//			if( READERRxQ_cnt >= READER_TOKEN_LENGTH )
+//			{
+//				if ( READERRxQ[READER_TOKEN_LENGTH-1] != 0x0A ) {
+//					READERRxQ_wp=0;
+//					READERRxQ_cnt=0;
+//					READERRxQ_rp=0;
+//					return;
+//				}
+//				for(i=0;i<READER_TOKEN_LENGTH;i++)
+//				{
+//					TokenReader[i]=READERRxQ[READERRxQ_rp];
+//					READERRxQ_cnt--;
+//					READERRxQ_rp++;
+//					if(READERRxQ_rp >= MAX_READER_RXQ_LENGTH) READERRxQ_rp = 0 ;
+//				}
+//				READERRxQ_wp=0;
+//				READERRxQ_cnt=0;
+//				READERRxQ_rp=0;
+//				READERTokenReady = 1 ;
+//			} 
+//		}
 
-	}
-	
-	u32IntSts = UART1->INTSTS;
-	if(u32IntSts & UART_INTSTS_THREINT_Msk)
-	{
-		if(READERTxQ_cnt > 0)
-		{      
-			DIR_READER_RS485_Out();
-			while(UART_IS_TX_FULL(UART1));  /* Wait Tx is not full to transmit data */
-			UART_WRITE(UART1, READERTxQ[READERTxQ_rp]);      
-			READERTxQ_cnt--;				                   
-			READERTxQ_rp++;
-			if(READERTxQ_rp >= MAX_READER_TXQ_LENGTH) 
-				READERTxQ_rp = 0 ;		
-		} else {
-				
-			/* Disable UART RDA and THRE interrupt */
-			UART_DisableInt(UART1, (UART_INTEN_THREIEN_Msk));
-			UART_EnableInt(UART1, (UART_INTEN_RDAIEN_Msk));
-			NVIC_EnableIRQ(UART1_IRQn);
-			TickDirReaderRS485Delay = 0 ;
-			fgDirReaderRS485Out2In = 1 ;		
-		}                	
-	}
-#endif 
+//	}
+//	
+//	u32IntSts = UART1->INTSTS;
+//	if(u32IntSts & UART_INTSTS_THREINT_Msk)
+//	{
+//		if(READERTxQ_cnt > 0)
+//		{      
+//			DIR_READER_RS485_Out();
+//			while(UART_IS_TX_FULL(UART1));  /* Wait Tx is not full to transmit data */
+//			UART_WRITE(UART1, READERTxQ[READERTxQ_rp]);      
+//			READERTxQ_cnt--;				                   
+//			READERTxQ_rp++;
+//			if(READERTxQ_rp >= MAX_READER_TXQ_LENGTH) 
+//				READERTxQ_rp = 0 ;		
+//		} else {
+//				
+//			/* Disable UART RDA and THRE interrupt */
+//			UART_DisableInt(UART1, (UART_INTEN_THREIEN_Msk));
+//			UART_EnableInt(UART1, (UART_INTEN_RDAIEN_Msk));
+//			NVIC_EnableIRQ(UART1_IRQn);
+//			TickDirReaderRS485Delay = 0 ;
+//			fgDirReaderRS485Out2In = 1 ;		
+//		}                	
+//	}
+//#endif 
 
-}
+//}
 
 // Center 
 void UART0_Init(void)
@@ -1212,8 +1204,6 @@ int main()
 	LED_G1_Off();
 	LED_R1_On();
 	LED_R1_Off();
-	//READER_POWER_Off();
-	READER_POWER_On();
 	
 	/*Test integrity of Meter FW */
 //	VerifyFW(fgFirstStart);
@@ -1317,9 +1307,9 @@ SystemTick = 0 ;
 #ifdef METER_TEST 
 	MeterValueTest = 10000 ;
 #endif 
-
+//		WtrMeter_Init();
 		ReadDeviceCmdTime = 20 ;	 	// Reading Power Meter per 20 x 20 mSec
-
+//		WtrMeter_Init();
 		/***	@Bms, @WtrMtr & @PwrMtr & @SoilSensor & @AirSensor & @Pyranometer Initialize function	***/
 		InitializePollingIDs();
 
@@ -1328,7 +1318,7 @@ SystemTick = 0 ;
 				WDT_RESET_COUNTER();
         SystemTick = 0 ;				// Clear System S/W watchdog 		
         ModbusDataProcess();
-        SystemPolling();
+				SystemPolling();
         ReadMyMeterBoardID();					
         HostProcess();		
         SystemTick = 0 ;		
@@ -1816,7 +1806,7 @@ void SystemPolling(void)
 								break;
 
 						case SYSTEM_POLLING_WM:
-								if (PollingWtrMtrID > WtrMtrMax)
+								if (PollingWtrMtrID > sizeof(WtrMtrIDArray))
 								{
 										PollingWtrMtrID = 1;
 										WMPollingFinishedFlag = TRUE;

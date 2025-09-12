@@ -306,7 +306,6 @@ void MODBUS_SendBMSCmd(uint8_t cmd)
  ***/
 void CmdModbus_BMS(uint8_t ModbusCmd)
 {
-	
 		switch(ModbusCmd)
 		{	
 				//	Raed

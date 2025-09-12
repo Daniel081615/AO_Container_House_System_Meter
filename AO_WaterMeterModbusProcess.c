@@ -44,7 +44,6 @@ void MODBUS_SendWMCmd(uint8_t cmd);
 void WMSuccess(void);
 void WMTimeoutProcess(void);
 void CheckWMState(void);
-
 void WtrMeter_Init(void);
 
 /*** 	Water Meter Variables	***/
@@ -173,28 +172,29 @@ void WMDataProcess(void)
 						
 				case MDBS_GET_TOTAL_WATER_CONSUMPTION:
 						u32tmp = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 8) + (TokenMeter[6]);
-						u32Lasttmp =  WMData[WtrMtrIdx].TotalVolume;
+						WMData[WtrMtrIdx].TotalVolume = u32tmp;
+						//u32Lasttmp =  WMData[WtrMtrIdx].TotalVolume;
 							
-						if (u32tmp >= u32Lasttmp)
-						{
-								if ((u32tmp - u32Lasttmp) < 200){
-										WMData[WtrMtrIdx].TotalVolume = u32tmp;
-								} else {
-										GapTimes[WtrMtrIdx]++;
-										if (GapTimes[WtrMtrIdx] > 3){
-												WMData[WtrMtrIdx].TotalVolume = u32tmp;
-												GapTimes[WtrMtrIdx] = 0;
-										}
-								}						
-						} else {
-								GapTimes[WtrMtrIdx]++;
-								if (GapTimes[WtrMtrIdx] > 3){
-										WMData[WtrMtrIdx].TotalVolume = u32tmp;
-										GapTimes[WtrMtrIdx] = 0;
-								}							
-						}
+//						if (u32tmp >= u32Lasttmp)
+//						{
+//								if ((u32tmp - u32Lasttmp) < 200){
+//										WMData[WtrMtrIdx].TotalVolume = u32tmp;
+//								} else {
+//										GapTimes[WtrMtrIdx]++;
+//										if (GapTimes[WtrMtrIdx] > 3){
+//												WMData[WtrMtrIdx].TotalVolume = u32tmp;
+//												GapTimes[WtrMtrIdx] = 0;
+//										}
+//								}						
+//						} else {
+//								GapTimes[WtrMtrIdx]++;
+//								if (GapTimes[WtrMtrIdx] > 3){
+//										WMData[WtrMtrIdx].TotalVolume = u32tmp;
+//										GapTimes[WtrMtrIdx] = 0;
+//								}							
+//						}
 
-						break;
+//						break;
 						
 				default:
 					break;
@@ -285,7 +285,6 @@ void WMSuccess(void)
 
 		WtrMtrError.Success[WtrMtrIdx] += 1;
 		WtrMtrError.WMDeviceNG &= (~(0x00000001 << (WtrMtrIdx)));
-		//	Move to next BMSpollingstate
     WMPollingStateIndex++;
 		WMPollingState = WM_POLLING_READY;			
 }
@@ -315,15 +314,18 @@ void WtrMeter_Init(void)
     const int baudrates[] = {9600, 4800, 2400, 1200};
     const int numBaudrates = sizeof(baudrates) / sizeof(baudrates[0]);
 		
+		
+		
     for (int i = 0; i < numBaudrates; i++)
     {
 				UART2_Init(baudrates[i]);
 				Delay_10ms(60);
 			
+				SystemPollingState = SYSTEM_POLLING_WM;
 				for (uint8_t i = 1; i < 0x10; i++)
 				{
 						PollingWtrMtrID = i;
-						MODBUS_SendWMCmd(MDBS_GET_TOTAL_WATER_CONSUMPTION);
+						MODBUS_SendWMCmd(MDBS_GET_VALVE_STATUS);
 					
 						Delay_10ms(30);
 					
@@ -333,10 +335,10 @@ void WtrMeter_Init(void)
 								WtrMtrError.WMDeviceNG &= (~(0x00000001 << (PollingWtrMtrID -1)));			
 							
 								//	Set baudrate
-								WMSetDeviceID = PollingWtrMtrID;
-								WMBaudRate= 0x03;			// 2400 baud
+								WMSetDeviceID = WtrMtrIDArray[0];
+								WMBaudRate= 0x01;			// 9600 baud
 								MODBUS_SendWMCmd(MDBS_SET_WM_DEVICE_ADDR_AND_BAUDRATE);
-								Delay_10ms(30);
+								Delay_10ms(60);
 							
 								TokenMeterReady = 0x00;
 						}

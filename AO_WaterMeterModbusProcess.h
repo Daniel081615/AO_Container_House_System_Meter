@@ -36,7 +36,7 @@ typedef struct{
 	uint32_t WMDeviceNG;
 	uint8_t Success[WtrMtrMax];
 	uint8_t Fail[WtrMtrMax];
-	uint8_t ErrorRate[PwrMtrMax];
+	uint8_t ErrorRate[WtrMtrMax];
 }WtrMtrError_t;
 
 typedef struct {
@@ -45,6 +45,6 @@ typedef struct {
 } WMData_t;
 
 extern WtrMtrError_t WtrMtrError;
-extern WMData_t  WMData[WtrMtrMax];
+extern WMData_t  WMData[];
 
 #endif	//AO_WaterMeterModbusProcess.h

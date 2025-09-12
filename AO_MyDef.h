@@ -1,4 +1,4 @@
-/*--------------------------------------------------------------------------- 
+/**--------------------------------------------------------------------------- 
  * File Name     : ITRI_GPL2_SensorHub.h
  * Company 		 : AOTECH
  * Author Name   : Barry Su
@@ -20,6 +20,7 @@
   PB10 / Input: Meter Digital Input (Low Counter)
   PB11 / Output: SSR Control (1: SSR ON)
  
+	* @ESG Container	Meter 'Define' Code
  * -------------------------------------------------------------------------- 
 */
 #ifndef __AO_MY_DEF__
@@ -30,180 +31,22 @@
 #include "stdint.h"
 #include "ota_manager.h"
 
-//	Per Meter Board
-#define PwrMtrMax 1
-#define BmsMax			1
-#define WtrMtrMax 1
-#define InvMax			1
-#define	PyrMtrMax 1
+// Device Per Meter Board
+
+#define PwrMtrMax 		1
+#define BmsMax				1
+#define WtrMtrMax 		1
+#define InvMax				1
+#define	PyrMtrMax 		1
 #define	SoilSensorMax 1
-#define	AirSensorMax 1
-
-//#define METER_TEST
-
-#define MAX_MANAGER_E		5
-
-#define MEMBER_MAX_NO		2
-#define RECORD_MAX		2
-#define POWER_RCD_MAX		3
-#define TAG_CHG_MAX		3
-
+#define	AirSensorMax 	1
 
 //wdt max retry times
 #define MAX_WDT_TRIES				4
 
+//#define METER_TEST
 
-// SystemMode : 
-// 	bit 0 = 1 => Multi-User / 0 => Sign User 
-// 	bit 1 = 1 => Auto Lock / 0 => Lock
-// 	bit 2 = 1 => Inside Lock Enable / 0 => Disable
-// 	bit 3 = 1 =>  
-// 	bit 4 = 1 => 
-// 	bit 5 = 1 => LCD Sleep Enable / 0 => Disable 
-// 	bit 6 = 1 => AC Power Loss / 0 => AC Power
-// 	bit 7 = 1 => No Power Control / 0 => Power Control 
-#define SYSTEM_SINGLE_MODE				0x00
-#define SYSTEM_MULTI_MODE					(0x01<<0)
-#define SYSTEM_AUTO_LOCK_ENABLE			(0x01 << 1)
-#define SYSTEM_INSIDE_LOCK_ENABLE			(0x01 << 2)
-
-#define SYSTEM_LCD_SLEEP					(0x01<<5)
-#define SYSTEM_AC_LOSS						(0x01<<6)
-#define SYSTEM_POWER_ALWAYS				(0x01<<7)
-#define SYSTEM_POWER_CONTROL				0x00
-
-
-#define FLAG_IN_CHARGE			(0x01 << 0)
-#define FLAG_PWD_ENABLED			(0x01 << 6)
-#define FLAG_SUPER_USER			(0x01 << 7)
-
-#define FLAG_USER_DATA_READY            (0x01 << 0 )
-#define FLAG_SYSTEM_TIME_READY        (0x01 << 1 )
-#define FLAG_POWER_METER_READY        (0x01 << 2 )
-
-// FLAG : From Reader  
-#define FLAG_READER_CARD			(0x01 << 0)
-#define FLAG_READER_DOOR		(0x01 << 1)
-#define FLAG_METER_CHG_BALANCE	(0x01 << 2)
-#define FLAG_METER_GET_RCD		(0x01 << 3)
-//#define FLAG_METER_INIT_BIT		(0x01 << 4)
-//#define FLAG_METER_INIT_BIT		(0x01 << 5)
-//#define FLAG_METER_INIT_BIT		(0x01 << 6)
-//#define FLAG_METER_INIT_BIT		(0x01 << 7)
-
-// fgFromHostFlag : Flag From Host 
-#define TO_METER_CHG_MODE				(0x01 << 0)
-#define TO_METER_CHG_BALANCE				(0x01 << 1)
-#define TO_METER_OPEN_DOOR				(0x01 << 2)
-#define TO_METER_USER_JOIN_CGR			(0x01 << 3)
-#define TO_METER_USER_EXIT_CGR			(0x01 << 4)
-#define TO_METER_CHG_USER_MODE			(0x01 << 5)
-#define FLAG_SYS_RST						(0x01 << 6)
-#define FLAG_SYS_INIT						(0x01 << 7)
-
-
-// fgToMeterFlag : Send to Meter
-#define TO_METER_CHG_MODE				(0x01 << 0)
-#define TO_METER_CHG_BALANCE				(0x01 << 1)
-#define TO_METER_OPEN_DOOR				(0x01 << 2)
-#define TO_METER_USER_JOIN_CGR			(0x01 << 3)
-#define TO_METER_USER_EXIT_CGR			(0x01 << 4)
-//#define FLAG_METER_SHOW_MSG				(0x01 << 5)
-#define FLAG_SYS_RST						(0x01 << 6)
-#define FLAG_SYS_INIT						(0x01 << 7)
-
-
-//#define FLAG_METER_SHOW_MSG			(0x01 << 5)
-//#define FLAG_METER_CLEAR_FLAG			(0x01 << 6)
-//#define FLAG_METER_SYS_RESET			(0x01 << 7)
-
-
-
-// FLAG for Meter System Operation
-#define FLAG_METER_CHR_UPDATED			(0x01 << 0)
-#define FLAG_METER_ADD_BAL				(0x01 << 1)
-#define FLAG_METER_DEC_BAL				(0x01 << 2)
-#define FLAG_METER_CHG_ROOM_MODE		(0x01 << 3)
-#define FLAG_METER_OPEN_ROOM_DOOR		(0x01 << 4)
-#define FLAG_METER_SHOW_MSG			(0x01 << 5)
-#define FLAG_METER_CLEAR_FLAG			(0x01 << 6)
-#define FLAG_METER_SYS_RESET				(0x01 << 7)
-
-
-// FLAG for Reader Function 
-#define FLAG_READER_INIT			(0x01 << 0)
-#define FLAG_READER_CHG_MODE		(0x01 << 1)
-#define FLAG_READER_CHG_DATA	(0x01 << 2)
-#define FLAG_READER_GET_RCD		(0x01 << 3)
-
-//#define FLAG_METER_INIT_BIT		(0x01 << 4)
-//#define FLAG_METER_INIT_BIT		(0x01 << 5)
-//#define FLAG_METER_INIT_BIT		(0x01 << 6)
-//#define FLAG_METER_INIT_BIT		(0x01 << 7)
-
-
-
-// Flag : From Reader Flag 
-#define FLAG_READER_USER_JOIN				(0x01 << 0)
-#define FLAG_READER_USER_EXIT				(0x01 << 1)
-#define FLAG_READER_DOOR_RCD_NEW		(0x01 << 2)
-#define FLAG_READER_ROOM_MODE_UPDATED	(0x01 << 3)
-//#define FLAG_READER_OPEN_ROOM_DOOR		(0x01 << 4)
-//#define FLAG_READER_SHOW_MSG				(0x01 << 5)
-//#define FLAG_READER_CLEAR_FLAG				(0x01 << 6)
-#define FLAG_READER_SYS_RESET				(0x01 << 7)
-
-
-// FLAG fgToMeterRSPFlag ( From Host )
-#define TO_METER_RSP_CLEAR_DATAUPDATED 	(0x01 << 7)
-
-// FLAG : DataUpdated 
-#define FLAG_DATA_PWR_RCD_NEW			(0x01 << 0)
-#define FLAG_DATA_DOOR_RCD_NEW			(0x01 << 1)
-#define FLAG_DATA_TAG_RCD_NEW			(0x01 << 2)
-#define FLAG_NUM_CGR_UPDATED			(0x01 << 3)
-#define FLAG_DATA_CHG_BAL				(0x01 << 4)
-#define FLAG_METER_VALUE_UPDATED		(0x01 << 5)
-#define FLAG_DATA_CHG_MODE				(0x01 << 6)
-
-
-// FLAG fgToHostFlag : To Center 
-#define TO_CENTER_CHG_BALANCE		(0x01 << 0)
-#define TO_CENTER_CHG_MODE			(0x01 << 1)
-#define TO_CENTER_CHG_USER_MODE		(0x01 << 2)
-#define TO_CENTER_PWR_RCD_NEW		(0x01 << 4)
-#define TO_CENTER_DOOR_RCD_NEW		(0x01 << 5)
-#define TO_CENTER_INIT_METER                (0x01 << 6)
-#define TO_CENTER_CHG_USER_INFO		(0x01 << 7)
-
-
-// FLAG fgToReaderFlag : To Reader
-#define TO_READER_CHG_BALANCE		(0x01 << 0)
-#define TO_READER_CHG_MODE			(0x01 << 1)
-#define TO_READER_CHG_USER_MODE		(0x01 << 2)
-#define TO_READER_OPEN_DOOR			(0x01 << 3)
-#define TO_READER_GOT_DOOR_RCD		(0x01 << 4)
-//#define FLAG_READER_SHOW_MSG			(0x01 << 5)
-#define TO_READER_SYS_RST			(0x01 << 6)
-#define TO_READER_SYS_INIT			(0x01 << 7)
-
-
-
-#define DOOR_RCD		0x01
-#define POWER_RCD		0x02
-#define TAG_CHG_RCD		0x03
-#define DOOR_RCD_DIR	0x04
-#define POWER_RCD_DIR	0x05
-#define TAG_CHG_RCD_DIR	0x06
-
-
-#define METER_MAX1 	10
-#define METER_MAX2 	10
-#define METER_MAX3 	10
-
-#define TC_VALUE	0x2800
-
-#define METER_POLL_INTERVAL	50
+#define MEMBER_MAX_NO		2
 
 #define POLL_TIMEOUT 					25
 #define MAX_POLL_RETRY_TIMES	5
@@ -215,13 +58,6 @@
 #define HOST_TOKEN_LENGTH			100
 #define MAX_HOST_TXQ_LENGTH    	100
 #define MAX_HOST_RXQ_LENGTH		100
-
-
-#define MAX_READER_TXQ_LENGTH     	100
-#define MAX_READER_RXQ_LENGTH     	100
-#define READER_TOKEN_LENGTH		100
-
-#define POWER_100W_COUNTER		160
 
 #define SYSTEM_ERROR_TIMEOUT		500
 #define MAX_BUTTON_TIMES				5
@@ -260,22 +96,11 @@
 #define LED_R1_TOGGLE()			(PC4 ^= 1)
 
 
-//#define ROOM_POWER_On()		(PF7 = 1); (PA3 = 1)
-//#define ROOM_POWER_Off()		(PF7 = 1); (PA3 = 0)
 
-// SERCOM 1
-#define DIR_READER_RS485_In()		//(PE11 = 0)
-#define DIR_READER_RS485_Out()		//(PE11 = 1)
+
 // SERCOM 2
 #define DIR_METER_RS485_In()		//(PC1 = 0)
 #define DIR_METER_RS485_Out()		//(PC1 = 1)
-// Reader Power Switch
-#define READER_POWER_On()			(PD3 = 1)
-#define READER_POWER_Off()			(PD3 = 0)
-//#define READER_POWER_On()			(PB0 = 1)
-//#define READER_POWER_Off()			(PB0 = 0)
-
-
 
 #define SET_RECORD_READY() 		fgToHostFlag |= 0x40
 
@@ -333,14 +158,14 @@ enum DEFINE_POWER_METER_STATE {
 #define INX_SEC			6
 #define INX_WEEK		7
 
-#define INX_TIME_START_YY_H	(READER_TOKEN_LENGTH-10)
-#define INX_TIME_START_YY_L	(READER_TOKEN_LENGTH-9)
-#define INX_TIME_START_M	(READER_TOKEN_LENGTH-8)
-#define INX_TIME_START_D	(READER_TOKEN_LENGTH-7)
-#define INX_TIME_START_H	(READER_TOKEN_LENGTH-6)
-#define INX_TIME_START_MN	(READER_TOKEN_LENGTH-5)
-#define INX_TIME_START_S	(READER_TOKEN_LENGTH-4)
-#define INX_TIME_START_W	(READER_TOKEN_LENGTH-3)
+#define INX_TIME_START_YY_H	(MAX_HOST_RXQ_LENGTH-10)
+#define INX_TIME_START_YY_L	(MAX_HOST_RXQ_LENGTH-9)
+#define INX_TIME_START_M	(MAX_HOST_RXQ_LENGTH-8)
+#define INX_TIME_START_D	(MAX_HOST_RXQ_LENGTH-7)
+#define INX_TIME_START_H	(MAX_HOST_RXQ_LENGTH-6)
+#define INX_TIME_START_MN	(MAX_HOST_RXQ_LENGTH-5)
+#define INX_TIME_START_S	(MAX_HOST_RXQ_LENGTH-4)
+#define INX_TIME_START_W	(MAX_HOST_RXQ_LENGTH-3)
 
 
 #define RELAY_ON	0x01

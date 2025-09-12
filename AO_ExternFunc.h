@@ -67,12 +67,12 @@ extern uint16_t Tick1S_ErrorRateGap;
 extern uint8_t PayMode;
 extern uint8_t RoomMode[PwrMtrMax];
 
-extern uint8_t PwrMtrIDArray[1];
-extern uint8_t BmsIDArray[1];
-extern uint8_t WtrMtrIDArray[1];
-extern uint8_t PyrMtrIDArray[1];
-extern uint8_t SoilSensorIDArray[1];
-extern uint8_t AirSensorIDArray[1];
+extern uint8_t PwrMtrIDArray[];
+extern uint8_t BmsIDArray[];
+extern uint8_t WtrMtrIDArray[];
+extern uint8_t PyrMtrIDArray[];
+extern uint8_t SoilSensorIDArray[];
+extern uint8_t AirSensorIDArray[];
 
 extern uint16_t MeterErrorRate_Tx[PwrMtrMax];
 extern uint16_t MeterErrorRate_Rx[PwrMtrMax];
@@ -98,8 +98,6 @@ extern uint8_t NewCardUID[4];
 extern uint8_t iKey,fgTimeSync;							// 加密基數
 extern uint8_t TokenHost[HOST_TOKEN_LENGTH];
 extern uint8_t TokenMeter[METER_TOKEN_LENGTH];
-extern uint32_t ManagerECID[MAX_MANAGER_E];
-extern uint8_t ReaderTxBuffer[READER_TOKEN_LENGTH];
 extern uint8_t MeterTxBuffer[METER_TOKEN_LENGTH];
 extern uint8_t HostTxBuffer[HOST_TOKEN_LENGTH];
 extern uint8_t NewUser,NowUser,LastUser;
@@ -122,7 +120,6 @@ extern uint8_t LastReaderRecord_RP;
 
 extern uint8_t TickHostUart, TickMeterUart;
 extern uint8_t 	iSystemTime[8];
-extern uint8_t TokenReader[READER_TOKEN_LENGTH];
 extern _Bool TokenMeterReady;
 extern uint8_t TickHost;
 extern uint8_t PacketIndex;
@@ -178,8 +175,6 @@ extern uint32_t PowerMeterRxCounter[PwrMtrMax];
 extern uint32_t PowerMeterTxCounter[PwrMtrMax];
 extern uint8_t HOSTTxQ[MAX_HOST_TXQ_LENGTH];
 extern uint8_t HOSTRxQ[MAX_HOST_RXQ_LENGTH];
-extern uint8_t READERTxQ[MAX_READER_TXQ_LENGTH];
-extern uint8_t READERRxQ[MAX_READER_RXQ_LENGTH];
 extern uint8_t METERRxQ[MAX_METER_RXQ_LENGTH];
 extern uint8_t METERTxQ[MAX_METER_TXQ_LENGTH];
 

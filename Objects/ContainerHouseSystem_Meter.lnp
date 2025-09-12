@@ -10,7 +10,6 @@
 ".\objects\ao_invertermodbusprocess.o"
 ".\objects\ao_modbusprocess.o"
 ".\objects\ao_pyranometer.o"
-".\objects\ao_readerprocess.o"
 ".\objects\ao_soilsensor.o"
 ".\objects\ao_watermetermodbusprocess.o"
 ".\objects\ao2022_metermodule_1261.o"

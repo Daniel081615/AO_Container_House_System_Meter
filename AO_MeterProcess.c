@@ -285,7 +285,8 @@ void MeterDataProcess(void)
 								u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;
 								break;
 							case CIC_BAW1A:
-								u32temp = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 24) + TokenMeter[6] ;								
+								u32temp = (TokenMeter[3] << 24) + (TokenMeter[4] << 16) + (TokenMeter[5] << 8) + TokenMeter[6] ;								
+								//u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;
 								break;
 							default :
 								u32temp = (TokenMeter[5] << 24) + (TokenMeter[6] << 16) + (TokenMeter[3] << 8) + TokenMeter[4] ;
