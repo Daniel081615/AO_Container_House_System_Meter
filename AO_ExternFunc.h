@@ -35,8 +35,6 @@ extern void SendHost_RspReaderInformation(void);
 extern void SendHost_RspReadEE(void);
 extern void SendReader_SystemSW(void);
 extern void RecordStopProcess(void);
-extern void RoomPowerManager_Pluse(void);
-extern void RoomPowerManager_Digital(void);
 
 extern void ReaderPolling(void);
 extern void MeterPolling(void);
@@ -56,8 +54,8 @@ extern void DigitMeterPowerON(void);
 extern void DigitMeterPowerOFF(void);
 
 extern void SendHost_MeterStatus(void);
-extern void UserCGRModeJoin(uint8_t *fnMemberUID);
-extern void UserCGRModeExit(uint8_t *fnMemberUID);
+extern void SendHost_MenterUpdateSuccess(void);
+
 extern void EnableHostUartTx(void);
 extern void DisableHostUartTx(void);
 extern uint8_t _SendStringToMETER(uint8_t *Str, uint8_t len);
@@ -193,8 +191,6 @@ extern volatile uint8_t SoilSensorCmdList[SoilSensorMax];
 
 extern TotErrorRate_t TotErrorRate;
 
-
-extern _Bool fgFirstStart;
 
 extern uint16_t GetMeterDataAddress(uint8_t index);
 extern void I2cWriteDataStruct(uint8_t index, STR_METER_D *data);

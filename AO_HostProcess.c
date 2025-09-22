@@ -48,7 +48,7 @@ void Host_AliveProcess(void);
 void Host_PwrMtrDataProcess(void);
 void Host_BmsDataProcess(void);
 void Host_WtrMtrDataProcess(void);
-void Host_PyrWtrDataProcess(void);
+void Host_PyrMtrDataProcess(void);
 void Host_SoilSensorDataProcess(void);
 void Host_AirSensorDataProcess(void);
 void Host_WateringProcess(void);
@@ -71,7 +71,7 @@ void GetHostRTC(void);
 /*MeterOta*/
 void Host_OTAMenterProcess(void);
 void SendHost_MenterFWinfo(void);
-void SendHost_MenterFWActivatedInfo(void);
+void SendHost_MenterUpdateSuccess(void);
 
 
 
@@ -89,12 +89,6 @@ void SendHost_MenterFWActivatedInfo(void);
 void HostProcess(void)
 {
     uint8_t i,checksum,fgDataReady,fgFromHostRSPFlag;
-	
-		// When Init, Send OTA Success to  Center
-		if (fgFirstStart){
-				fgFirstStart = 0;
-				SendHost_MenterFWActivatedInfo();
-		}
 
     if ( TickHost == 49 )
     {
@@ -162,7 +156,7 @@ void HostProcess(void)
                         ClearRespDelayTimer() ;	
                         break;	
 										case METER_GET_CMD_PYRANOMETER:
-                        Host_PyrWtrDataProcess();                        
+                        Host_PyrMtrDataProcess();                        
                         CmdType = METER_RSP_PYR_DATA ;
                         ClearRespDelayTimer();
 												break;
@@ -243,6 +237,34 @@ void HostProcess(void)
 										
 										case METER_RSP_WATERING_STATUS:
 												SendHost_WateringStatus();
+												break;
+
+										case METER_OTA_UPDATE:		//0x40
+												SYS_UnlockReg();
+												FMC_ENABLE_ISP();
+												BankStatus.Cmd = BTLD_UPDATE_METER;
+												WriteFwStatus(&BankStatus);
+												SendHost_MenterFWinfo();
+												JumpToBootloader();
+												break;
+
+										case METER_SWITCH_FW:	//0x51
+												SYS_UnlockReg();
+												FMC_ENABLE_ISP();
+												SendHost_MenterFWinfo();
+												FwBankSwitchProcess(IsFwValid(&BankMeta[Backup]));
+												JumpToBootloader();
+												break;
+										
+										case METER_GET_FW_STATUS:	//0x52
+												SendHost_MenterFWinfo();
+												SYS_LockReg();
+												break;
+										
+										case METER_REBOOT:			//0x53
+												SendHost_MenterFWinfo();
+												NVIC_SystemReset();
+												JumpToBootloader();
 												break;
                     
 										default :
@@ -349,7 +371,7 @@ void Host_WtrMtrDataProcess(void)
 		}
 }
 
-void Host_PyrWtrDataProcess(void)
+void Host_PyrMtrDataProcess(void)
 {
     HostPollingDeviceIdx = TokenHost[3];
 		GetHostRTC();
@@ -482,42 +504,15 @@ void Host_WateringProcess(void)
 */
 void Host_OTAMenterProcess(void)
 {
-    uint8_t i;
 		SYS_UnlockReg();
 		FMC_Open();
 	
-		GetHostRTC();
-    HostPollingDeviceIdx = TokenHost[3];
+		CmdType = TokenHost[5];
+		Get_DualBankStatus(&BankStatus, &BankMeta[Active], &BankMeta[Backup]);
 		
-		switch(TokenHost[3])
-    {
-			  case METER_OTA_UPDATE:		//0x20
-            WRITE_FW_STATUS_FLAG(OTA_UPDATE_FLAG);
-            SendHost_MenterFWinfo();
-            JumpToBootloader();
-            break;
-
-        case METER_SWITCH_FW:	//0x21
-            WRITE_FW_STATUS_FLAG(SWITCH_FW_FLAG);
-            SendHost_MenterFWinfo();
-            MarkFwAsActive(FALSE);
-            JumpToBootloader();
-            break;
-				
-        case METER_GET_FW_STATUS:	//0x22
-            SendHost_MenterFWinfo();
-            break;
-				
-        case METER_REBOOT:			//0x23
-            WRITE_FW_STATUS_FLAG(REBOOT_FW_FLAG);
-            SendHost_MenterFWinfo();
-            JumpToBootloader();
-            break;
-
-        default:
-            break;
 		SYS_LockReg();
-		}
+	
+		GetHostRTC();
 }
 
 /***
@@ -1020,20 +1015,20 @@ void SendHost_WateringStatus(void)
 0: 0x55
 1: MeterID
 2: Cmd (0x17)
-4-19: FWstatus (16 byte)
-20-51: FWMetadata1 (32 byte)
-52-83: FWMetadata2 (32 byte)
+4-19: FwStatus (16 byte)
+20-51: FwMeta1 (32 byte)
+52-83: FwMeta2 (32 byte)
 */
 void SendHost_MenterFWinfo(void)
 {	
 	// Send Meter Fw Metadata to host, then go to meterBootloader
 
 		uint8_t i;
-		HostTxBuffer[2] = METER_OTA_UPDATE;	
+		HostTxBuffer[2] = METER_RSP_FW_STATUS;	
 
-		memcpy(&HostTxBuffer[4], &g_fw_ctx, sizeof(FWstatus));
-    memcpy(&HostTxBuffer[20], &meta, sizeof(FWMetadata));
-		memcpy(&HostTxBuffer[52], &other, sizeof(FWMetadata));
+		memcpy(&HostTxBuffer[4], &BankStatus, sizeof(FwStatus));
+    memcpy(&HostTxBuffer[20], &BankMeta[Active], sizeof(FwMeta));
+		memcpy(&HostTxBuffer[52], &BankMeta[Backup], sizeof(FwMeta));
 	
 		CalChecksumH();
 }
@@ -1046,12 +1041,12 @@ void SendHost_MenterFWinfo(void)
 6: 0xC0
 7: 0xDD
 */
-void SendHost_MenterFWActivatedInfo(void)
-{	
-	// Send Meter validated Password to host, let Center Pop out of OTAMode
+void SendHost_MenterUpdateSuccess(void)
+{
+		// Send Meter validated Password to host, let Center Pop out of OTAMode
+		HostTxBuffer[2] = CMD_OTA_SUCCESS_PWD ;
 		HostTxBuffer[4] = 0x0A;		HostTxBuffer[5] = 0xBB;
 		HostTxBuffer[6] = 0xC0;		HostTxBuffer[7] = 0xDD;
-	
 		CalChecksumH();
 }
 

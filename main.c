@@ -2,9 +2,9 @@
  * @file     main.c
  * @version  V1.00
  * $Revision: 2 $
- * $Date: 16/10/25 4:34p $
+ * $Date: 25/9/17 4:34p $
  * @brief    Software Development Template.
- * @note		 Add test functions in main... ( Device address affirm & revice )
+ * @note		 
  * Copyright (C) 2016 Nuvoton Technology Corp. All rights reserved.
 *****************************************************************************/
 #include <stdio.h>
@@ -227,6 +227,7 @@ void WriteUserInfoToEE(void);
 
 uint16_t ReadUserValueFromEE_One(uint8_t fMemberIndex);
 void CheckStartRecord(void);
+void SendHost_UpdateSuccess_10ms(uint8_t ms);
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Global variables                                                                                        */
@@ -248,7 +249,7 @@ _Bool fgDirReaderRS485Out2In,fgDirMeterRS485Out2In,fgDisableRS485Tx;
 uint16_t TickDirReaderRS485Delay,TickDirMeterRS485Delay,TickDisableRS485TxDelay;
 uint16_t tick_MeterSetting;
 uint8_t Tick1S_ResetReaderPower;
-_Bool fgFirstStart;
+
 uint8_t Tick_LED_G,Tick_LED_G1,Tick_LED_R,Tick_LED_R1;
 
 uint8_t StepFineTuneUR2,UR2_FregOK;
@@ -338,7 +339,7 @@ void WDT_IRQHandler(void)
 	
 		WDT_RESET_COUNTER();
 		
-		uint32_t other_addr = (g_fw_ctx.FW_meta_Addr == METADATA_FW1_BASE) ? METADATA_FW2_BASE : METADATA_FW1_BASE;
+		uint32_t BackupBank_addr = (BankStatus.Fw_Meta_Base == BANK1_META_BASE) ? BANK2_META_BASE : BANK1_META_BASE;
 		
 		if (WDT_GET_TIMEOUT_INT_FLAG())
     {
@@ -346,16 +347,16 @@ void WDT_IRQHandler(void)
         WDT_CLEAR_TIMEOUT_INT_FLAG();
         g_u32WDTINTCounts++;			
 			
-				meta.WDTRst_counter = g_u32WDTINTCounts;
-				WriteMetadata(&meta, g_fw_ctx.FW_meta_Addr);
+				BankMeta[Active].WDTRst_counter = g_u32WDTINTCounts;
+				WriteMetadata(&BankMeta[Active], BankStatus.Fw_Meta_Base);
 			
 				if(g_u32WDTINTCounts > MAX_WDT_TRIES)
 				{
-						meta.flags &= ~(FW_FLAG_ACTIVE | FW_FLAG_VALID);
-						meta.flags |= FW_FLAG_INVALID;
-						other.flags |= FW_FLAG_ACTIVE;
-						WriteMetadata(&other, other_addr);
-						WriteMetadata(&meta, g_fw_ctx.FW_meta_Addr);
+						BankMeta[Active].flags &= ~(Fw_ActiveFlag | Fw_ValidFlag);
+						BankMeta[Active].flags |= Fw_InvalidFlag;
+						BankMeta[Backup].flags |= Fw_ActiveFlag;
+						WriteMetadata(&BankMeta[Backup], BackupBank_addr);
+						WriteMetadata(&BankMeta[Active], BankStatus.Fw_Meta_Base);
 						WDT_Open(WDT_TIMEOUT_2POW4, WDT_RESET_DELAY_3CLK, TRUE, FALSE);
 						while (1);
 				}
@@ -744,7 +745,7 @@ void UART0_Init(void)
     /* Init UART                                                                                               */
     /*---------------------------------------------------------------------------------------------------------*/
     /* Reset UART0 */
-    uint8_t u8UartClkSrcSel, u8UartClkDivNum;
+  uint8_t u8UartClkSrcSel, u8UartClkDivNum;
 	uint32_t u32ClkTbl[4] = {__HXT, 0, __LXT, __HIRC};
 	uint32_t u32Baud_Div = 0;
 	uint32_t u32baudrate = 57600 ;
@@ -798,7 +799,7 @@ void UART0_Init(void)
 	/* Enable UART RDA and THRE interrupt */	
 	//RT_EnableInt(UART0, (UART_INTEN_RDAIEN_Msk | UART_INTEN_THREIEN_Msk ));
 	UART_EnableInt(UART0, (UART_INTEN_RDAIEN_Msk  ));
-	NVIC_EnableIRQ(UART02_IRQn);
+	//NVIC_EnableIRQ(UART02_IRQn);
 	DisableHostUartTx();
 	
 }
@@ -967,9 +968,16 @@ void SYS_Init(void)
 
 	/* Set core clock as PLL_CLOCK from PLL */
 	CLK_SetCoreClock(PLL_CLOCK);
-
+	
+#define SYS_IRCTCTL0_AUTO_TRIM_HIRC_ENABLE 0x01
+	// Auto Trim HIRC to 22.1184 MHz
+	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_FREQSEL_Msk)) | (SYS_IRCTCTL0_AUTO_TRIM_HIRC_ENABLE << SYS_IRCTCTL0_FREQSEL_Pos);
+	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_REFCKSEL_Msk)) | (0x00 << SYS_IRCTCTL0_REFCKSEL_Pos) ;
+	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_LOOPSEL_Msk)) | (0x11<<SYS_IRCTCTL0_LOOPSEL_Pos) ;
+	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_RETRYCNT_Msk)) | (0x11<<SYS_IRCTCTL0_RETRYCNT_Pos) ;
+	
 	CLK_SetSysTickClockSrc(CLK_CLKSEL0_STCLKSEL_HCLK_DIV2);
-
+	
 	/* Enable UART module clock */
 	CLK_EnableModuleClock(UART0_MODULE);     
 	CLK_EnableModuleClock(UART1_MODULE);
@@ -985,13 +993,6 @@ void SYS_Init(void)
 	CLK_SetModuleClock(UART2_MODULE, CLK_CLKSEL1_UARTSEL_HIRC, CLK_CLKDIV0_UART(1));
 	CLK_SetModuleClock(WDT_MODULE, CLK_CLKSEL1_WDTSEL_HCLK_DIV2048, MODULE_NoMsk);
 	
-#define SYS_IRCTCTL0_AUTO_TRIM_HIRC_ENABLE 0x01
-	// Auto Trim HIRC to 22.1184 MHz
-	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_FREQSEL_Msk)) | (SYS_IRCTCTL0_AUTO_TRIM_HIRC_ENABLE << SYS_IRCTCTL0_FREQSEL_Pos);
-	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_REFCKSEL_Msk)) | (0x00 << SYS_IRCTCTL0_REFCKSEL_Pos) ;
-	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_LOOPSEL_Msk)) | (0x11<<SYS_IRCTCTL0_LOOPSEL_Pos) ;
-	SYS->IRCTCTL0 = (SYS->IRCTCTL0 & (~SYS_IRCTCTL0_RETRYCNT_Msk)) | (0x11<<SYS_IRCTCTL0_RETRYCNT_Pos) ;
-
 	/*---------------------------------------------------------------------------------------------------------*/
 	/* Init I/O Multi-function                                                                                 */
 	/*---------------------------------------------------------------------------------------------------------*/
@@ -1148,88 +1149,73 @@ uint32_t u32_RSTScr;
 int main()
 {
 	
-  uint8_t i,j;
-	
-	uint32_t rst = SYS->RSTSTS;
-	SYS->RSTSTS = rst;
-	//rst & SYS_RSTSTS_WDTRF_Msk
-
-
-	/* Because of all bits can be written in WDT Control Register are write-protected;
-	To program it needs to disable register protection first. */
-	
-	SYS_UnlockReg();
-	SYS_Init();
-	AO2022_MeterModule_1261_init();
-	WDT_Init();
-	FMC_Open();
-	
-
+		uint8_t i,j;
 		
-	/* To check if system has been reset by WDT time-out reset or not */
-	//if(WDT_GET_RESET_FLAG() == 1)
-	//{
-		//WDT_CLEAR_RESET_FLAG();
-		//printf("*** System has been reset by WDT time-out event ***\n\n");
-		//while(1);
-	//}
-	/* Enable WDT NVIC */
-	//NVIC_EnableIRQ(WDT_IRQn);
+		uint32_t rst = SYS->RSTSTS;
+		SYS->RSTSTS = rst;
+		//rst & SYS_RSTSTS_WDTRF_Msk
+
+
+		/* Because of all bits can be written in WDT Control Register are write-protected;
+		To program it needs to disable register protection first. */
 		
-	GPIO_Mode_Init();
-	ROOM_POWER_On();
-	//DIR_READER_RS485_In();
-	//DIR_METER_RS485_In();
-	
-	u32_RSTScr = SYS_GetResetSrc();
-	if ( (u32_RSTScr & (SYS_RSTSTS_WDTRF_Msk | SYS_RSTSTS_PINRF_Msk | SYS_RSTSTS_CPURF_Msk | SYS_RSTSTS_CPULKRF_Msk)) > 0 )
-	{
-		// INIT. METER
-		//fgWaitInitFromCenter = 1 ;
+		SYS_UnlockReg();
+		SYS_Init();
+		AO2022_MeterModule_1261_init();
+		WDT_Init();
+		FMC_Open();
+			
+		GPIO_Mode_Init();
+		ROOM_POWER_On();
+		//DIR_READER_RS485_In();
+		//DIR_METER_RS485_In();
 		
-		SYS->RSTSTS = 0 ;
+		u32_RSTScr = SYS_GetResetSrc();
+		if ( (u32_RSTScr & (SYS_RSTSTS_WDTRF_Msk | SYS_RSTSTS_PINRF_Msk | SYS_RSTSTS_CPURF_Msk | SYS_RSTSTS_CPULKRF_Msk)) > 0 )
+		{
+			// INIT. METER
+			//fgWaitInitFromCenter = 1 ;
+			
+			SYS->RSTSTS = 0 ;
+			
+		}
 		
-	}
-	
-	fgFirstStart=1;
-	
-	ROOM_POWER_On();
-	//RELAY2_High();
-	//RELAY1_High();		// ROOM POWER ON 
-	LED_G_On();
-	LED_G_Off();
-	LED_R_On();
-	LED_R_Off();
-	LED_G1_On();
-	LED_G1_Off();
-	LED_R1_On();
-	LED_R1_Off();
-	
-	/*Test integrity of Meter FW */
-//	VerifyFW(fgFirstStart);
-	
-	SysTick_Config(PLL_CLOCK/2/100);
-	NVIC_EnableIRQ(SysTick_IRQn);
-	 
-	UART0_Init();
-	UART1_Init();
-	
+		ROOM_POWER_On();
+		//RELAY2_High();
+		//RELAY1_High();		// ROOM POWER ON 
+		LED_G_On();
+		LED_G_Off();
+		LED_R_On();
+		LED_R_Off();
+		LED_G1_On();
+		LED_G1_Off();
+		LED_R1_On();
+		LED_R1_Off();
+		 
+		UART0_Init();
+		UART1_Init();
 
-	
-	/* Lock protected registers */
-	SYS_LockReg();
+		DisableHostUartTx();	
+		
+		ReadMyMeterBoardID();	
+		
+		/*Test integrity of Meter FW */
+		FwValidator();
 
-	UART2_Init(9600);
+		UART2_Init(9600);
+		SoftI2cMasterInit();
+		
+		NVIC_EnableIRQ(UART1_IRQn);
+		NVIC_EnableIRQ(UART02_IRQn);		
+		
+		SysTick_Config(PLL_CLOCK/2/100);
+		NVIC_EnableIRQ(SysTick_IRQn);
 
-  
-	DisableHostUartTx();
-	NVIC_EnableIRQ(UART1_IRQn);
-	NVIC_EnableIRQ(UART02_IRQn);
+		SYS_LockReg();
+		
 
-	
-	SoftI2cMasterInit();
-	//TestI2C_RWEEPROM();
-	WDT_RESET_COUNTER();
+		//TestI2C_RWEEPROM();
+		WDT_RESET_COUNTER();
 	
 //	STR_METER_D MD;
 //	for(uint8_t i=0; i < PwrMtrMax; i++)
@@ -1248,8 +1234,6 @@ int main()
 	
     //MaxPowerMeter = PwrMtrMax ;
     MaxPowerMeter = 1 ;
-
-
     
     MeterErrorRate5Min_Wp = 0 ;
 	
@@ -1258,10 +1242,6 @@ int main()
 #endif 	 	
 	
 		ReadMyMeterBoardID();
-
-		Delay_10ms(75);				// Delay for System stable
-		
-		SoftI2cMasterInit();
     
     ReadMyMeterBoardID();		
     fgToReaderRSPFlag = 0xFF;
@@ -1273,7 +1253,6 @@ int main()
 	SystemTick = 0 ;
 	DefaultValueTest();
 	TotalWattValue_Now = 0 ;
-	
 	
 #endif 	
 
@@ -1294,15 +1273,18 @@ SystemTick = 0 ;
 	fgDIR485_Reader=0;			
 	//DIR485_READER_In();
 	
-	u32TimeTick2=0;   
-	bRegister = 1 ;
-	fgToReaderFlag = 0x40 ;
-	
-	DelayTick=0;
-	
-	MeterType = CIC_BAW1A ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
-	TickReadDeviceTime = 0 ;
-	PowerOnReadMeter = 1 ;
+		ResetHostUART();
+		ResetMeterUART();
+		SendHost_UpdateSuccess_10ms(15);
+
+		bRegister = 1 ;
+		fgToReaderFlag = 0x40 ;
+		
+		DelayTick=0;
+		
+		MeterType = CIC_BAW1A ; //CIC_BAW2A ; 	// For DongHwa , Meter is 0x01 (DAE DEM530)	
+		TickReadDeviceTime = 0 ;
+		PowerOnReadMeter = 1 ;
 
 #ifdef METER_TEST 
 	MeterValueTest = 10000 ;
@@ -1315,6 +1297,7 @@ SystemTick = 0 ;
 
     do {
         //RoomData.RoomMode = RM_POWER_OFF_READY ;
+				//BlinkStatusLED( (TRUE) ? PD : PF, (TRUE) ? 7 : 2, 10, 750);
 				WDT_RESET_COUNTER();
         SystemTick = 0 ;				// Clear System S/W watchdog 		
         ModbusDataProcess();
@@ -1326,6 +1309,7 @@ SystemTick = 0 ;
         //SaveSetting2EE();							
         RecoverSystemMoniter();				
         CalErrorRate();
+
 				
     } while (1); 
 }
@@ -2014,9 +1998,21 @@ void Delay_10ms(uint8_t ms)
 {
 		u32TimeTick2 = 0;
 		do {
-				SystemTick = 0 ;		
+				SystemTick = 0 ;
+				WDT_RESET_COUNTER();			
 		} while( u32TimeTick2 < ms ); 
-		WDT_RESET_COUNTER();
+}
+
+
+void SendHost_UpdateSuccess_10ms(uint8_t ms)
+{
+    uint32_t startTick = u32TimeTick2;
+    uint32_t requiredTicks = ms;
+
+    while ((u32TimeTick2 - startTick) < requiredTicks) {
+        WDT_RESET_COUNTER();
+        SendHost_MenterUpdateSuccess();
+    }
 }
 
 
